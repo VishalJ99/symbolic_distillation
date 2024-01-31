@@ -1,0 +1,32 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.0.1
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+      - id: debug-statements
+  - repo: https://github.com/psf/black
+    rev: 23.11.0
+    hooks:
+      - id: black
+        language_version: python3.11
+        exclude: ^docs/
+      - id: black-jupyter
+        language_version: python3.11
+        exclude: ^docs/
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        exclude: ^docs/
+  - repo: local
+    hooks:
+      - id: testing
+        name: testing
+        entry: pytest
+        language: system
+        files: ^test/ # ^ means "start with test/"
+        always_run: true # run on all files, not just those staged otherwise it will not run unless you update the test file

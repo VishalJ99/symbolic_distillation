@@ -1,0 +1,10 @@
+name: vj279_project
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - black
+  - flake8
+  - pre-commit
+  - pytest
+prefix: /Users/vishaljain/anaconda3/envs/vj279_project
