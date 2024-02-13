@@ -1,0 +1,8 @@
+jax==0.4.23
+jaxlib ==0.4.23
+matplotlib==3.7.1
+matplotlib-inline==0.1.6
+matplotlib-venn==0.11.10
+numpy==1.23.5
+tqdm==4.66.1
+celluloid==0.2.0
