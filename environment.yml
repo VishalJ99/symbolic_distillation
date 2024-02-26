@@ -1,5 +1,6 @@
 name: vj279_project
 channels:
+  - pytorch # is this channel needed?
   - defaults
   - conda-forge
 dependencies:
@@ -16,3 +17,6 @@ dependencies:
   - numpy=1.23.5
   - tqdm=4.66.1
   - celluloid=0.2.0
+  - pip
+  - pip:
+    - torch==2.1.0
