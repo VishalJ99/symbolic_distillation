@@ -1,6 +1,7 @@
 *cache*
 .py*
 *data*
+!datasets.py
 simulations/playground.ipynb
 papers
 *.ipynb
