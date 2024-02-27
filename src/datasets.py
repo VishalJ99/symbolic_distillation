@@ -46,6 +46,36 @@ class ParticleDynamicsDataset(InMemoryDataset):
         # Assuming data is locally available, so download is not required.
         pass
 
+    def _load_data(self, fpath):
+        """
+        Loads a npy file into a PyTorch tensor of the appropriate shape
+        to input into the PyG Data object.
+        Merges the simulation and timestep dimensions into a single batch.
+        """
+        # Load the data.
+        src_array = np.load(fpath)
+
+        # Reshape the tensors from n_sims, timesteps , n_bodies, feats
+        # to n_sims*timesteps (batch), n_bodies (nodes), feats
+        # NOTE: Lose time series nature of the data at this step.
+        # NOTE: Old method of reshaping the tensor - replace with view.
+
+        src_array = np.concatenate(
+            [src_array[:, i] for i in range(0, src_array.shape[1], 1)]
+        )
+
+        # Convert to PyTorch tensors.
+        t = torch.from_numpy(src_array)
+
+        # TODO: Figure out if this reshaping works fine too.
+        # t = t.view(
+        #     -1,
+        #     t.shape[-2],
+        #     t.shape[-1],
+        # )
+
+        return t
+
     def process(self):
         # Load data from the raw files.
         for f in os.listdir(self.raw_dir):
@@ -57,33 +87,11 @@ class ParticleDynamicsDataset(InMemoryDataset):
         # Get sim name from the file name.
         sim = f.split("_")[0].split("=")[1]
 
-        # Load the data.
-        pos_vel_charge_mass_array = np.load(pos_vel_charge_mass_fpath)
-        accel_array = np.load(accel_fpath)
+        pos_vel_charge_mass_tensor = self._load_data(pos_vel_charge_mass_fpath)
+        acceleration_tensor = self._load_data(accel_fpath)
 
         # Get edge indices.
-        edge_index = get_edge_index(pos_vel_charge_mass_array.shape[0], sim)
-
-        # Convert to PyTorch tensors.
-        pos_vel_charge_mass_tensor = torch.tensor(
-            pos_vel_charge_mass_array, dtype=torch.float
-        )
-        acceleration_tensor = torch.tensor(accel_array, dtype=torch.float)
-
-        # Reshape the tensors from n_sims, timesteps , n_bodies, feats
-        # to n_sims*timesteps (batch), n_bodies (nodes), feats
-        # NOTE: Lose time series nature of the data at this step.
-        pos_vel_charge_mass_tensor = pos_vel_charge_mass_tensor.view(
-            -1,
-            pos_vel_charge_mass_tensor.shape[-2],
-            pos_vel_charge_mass_tensor.shape[-1],
-        )
-
-        acceleration_tensor = acceleration_tensor.view(
-            -1,
-            acceleration_tensor.shape[-2],
-            acceleration_tensor.shape[-1],
-        )
+        edge_index = get_edge_index(pos_vel_charge_mass_tensor.shape[0], sim)
 
         # Wrap data in PyG Data objects.
         data_list = [
