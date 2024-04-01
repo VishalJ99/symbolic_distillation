@@ -20,9 +20,7 @@ def main(sim, n, dim, nt, ns, seed, output_dir):
     dt = sim_sets[sim]["dt"]
 
     # Create a title from the sim params
-    title = (
-        f"sim={sim}_ns{ns}_seed{seed}_n_body={n}_dim={dim}_nt={nt}_dt={dt:.0e}"
-    )
+    title = f"sim={sim}_ns={ns}_seed={seed}_n_body={n}_dim={dim}_nt={nt}_dt={dt:.0e}"
 
     # Create a simulation dataset object.
     sim_obj = SimulationDataset(sim, n=n, dim=dim, nt=nt, dt=dt)

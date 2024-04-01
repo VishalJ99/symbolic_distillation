@@ -1,0 +1,11 @@
+Write a hard coded train script from the notebook
+
+Train the model on the hpc
+
+Write an eval pipeline to visualise training.
+
+Criteria before generalising:
+- Train loss curves match
+- Force and edge msg correlation - to the degree in the notebook
+- Test for a simple system - 2 body circular orbit, check dynamics are predicted.
+
