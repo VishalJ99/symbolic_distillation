@@ -2,9 +2,13 @@ import os
 import numpy as np
 import torch
 from torch_geometric.data import InMemoryDataset, Data
+<<<<<<< HEAD
 from utils import get_train_val_test_split, get_edge_index
 from sklearn.model_selection import train_test_split
 from icecream import ic
+=======
+from utils import get_edge_index
+>>>>>>> feature/particle-dynamics-dataset
 
 
 class ParticleDynamicsDataset(InMemoryDataset):
@@ -60,6 +64,11 @@ class ParticleDynamicsDataset(InMemoryDataset):
         # Reshape the tensors from n_sims, timesteps , n_bodies, feats
         # to n_sims*timesteps (batch), n_bodies (nodes), feats
         # NOTE: Lose time series nature of the data at this step.
+<<<<<<< HEAD
+=======
+        # NOTE: Old method of reshaping the tensor - replace with view.
+
+>>>>>>> feature/particle-dynamics-dataset
         src_array = np.concatenate(
             [src_array[:, i] for i in range(0, src_array.shape[1], 1)]
         )
@@ -67,6 +76,16 @@ class ParticleDynamicsDataset(InMemoryDataset):
         # Convert to PyTorch tensors.
         t = torch.from_numpy(src_array)
 
+<<<<<<< HEAD
+=======
+        # TODO: Figure out if this reshaping works fine too.
+        # t = t.view(
+        #     -1,
+        #     t.shape[-2],
+        #     t.shape[-1],
+        # )
+
+>>>>>>> feature/particle-dynamics-dataset
         return t
 
     def process(self):
@@ -78,6 +97,7 @@ class ParticleDynamicsDataset(InMemoryDataset):
                 pos_vel_charge_mass_fpath = os.path.join(self.raw_dir, f)
 
         # Get sim name from the file name.
+<<<<<<< HEAD
         # NOTE assumes file name follows format used by `simulations/run_sims.py`.
         sim = f.split("_")[0].split("=")[1]
 
@@ -118,6 +138,56 @@ class ParticleDynamicsDataset(InMemoryDataset):
 
             # Save the splits.
             self._save_split(data_list, self.processed_paths[idx])
+=======
+        sim = f.split("_")[0].split("=")[1]
+
+        pos_vel_charge_mass_tensor = self._load_data(pos_vel_charge_mass_fpath)
+        acceleration_tensor = self._load_data(accel_fpath)
+
+        # Get edge indices.
+        edge_index = get_edge_index(pos_vel_charge_mass_tensor.shape[0], sim)
+
+        # Wrap data in PyG Data objects.
+        data_list = [
+            Data(
+                x=pos_vel_charge_mass_tensor[i],
+                y=acceleration_tensor[i],
+                edge_index=edge_index,
+            )
+            for i in range(pos_vel_charge_mass_tensor.size(0))
+        ]
+
+        # Optionally apply pre_transforms here.
+        if self.pre_transform is not None:
+            data_list = [self.pre_transform(data) for data in data_list]
+
+        # Randomly shuffle data_list. TODO: Handle seed for reproducibility!
+        data_list = [data_list[i] for i in torch.randperm(len(data_list))]
+
+        # Calculate split sizes.
+        train_size = int(len(data_list) * self.train_val_test_split[0])
+        val_size = int(len(data_list) * self.train_val_test_split[1])
+        test_size = len(data_list) - train_size - val_size
+
+        # Split data.
+        train_data, remaining_data = torch.utils.data.random_split(
+            data_list, [train_size, len(data_list) - train_size]
+        )
+        val_data, test_data = torch.utils.data.random_split(
+            remaining_data, [val_size, test_size]
+        )
+
+        # Save the splits
+        self._save_split(
+            [data_list[i] for i in train_data.indices], self.processed_paths[0]
+        )
+        self._save_split(
+            [data_list[i] for i in val_data.indices], self.processed_paths[1]
+        )
+        self._save_split(
+            [data_list[i] for i in test_data.indices], self.processed_paths[2]
+        )
+>>>>>>> feature/particle-dynamics-dataset
 
     def _save_split(self, split_data, path):
         data, slices = self.collate([data for data in split_data])
