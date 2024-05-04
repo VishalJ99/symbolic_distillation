@@ -13,8 +13,11 @@ import pandas as pd
 import pickle as pkl
 from copy import deepcopy as copy
 from utils import seed_everything
+from accelerate import Accelerator
 
 seed_everything(42)
+accelerate = Accelerator()
+device = accelerate.device
 
 
 # Custom funcs
@@ -122,9 +125,11 @@ def get_messages(ogn):
 
 
 # Load the data - change this to data of the right shape.
-data = np.load("data/particle_dynamics/reduced_spring/pos_vel_charge_mass.npy")
+data = np.load(
+    "data/particle_dynamics/reduced_spring/raw/sim=spring_ns=20000_seed=42_n_body=4_dim=2_nt=200_dt=1e-02_data.npy"
+)
 accel_data = np.load(
-    "/Users/vishaljain/project/data/particle_dynamics/spring/raw/sim=spring_ns=20000_seed=42_n_body=4_dim=2_nt=1000_dt=1e-02_accel_data.npy"
+    "data/particle_dynamics/spring/raw/sim=spring_ns=20000_seed=42_n_body=4_dim=2_nt=1000_dt=1e-02_accel_data.npy"
 )
 
 # Hyper params
@@ -192,7 +197,7 @@ ogn = OGN(
     hidden=hidden,
     edge_index=get_edge_index(n, sim),
     aggr=aggr,
-).cuda()
+).to(device)
 opt = torch.optim.Adam(ogn.parameters(), lr=init_lr, weight_decay=1e-8)
 sched = OneCycleLR(
     opt,
@@ -204,21 +209,21 @@ sched = OneCycleLR(
 
 recorded_models = []
 messages_over_time = []
-
+print("using device ", device)
 for epoch in tqdm(range(1, total_epochs + 1)):
-    ogn.cuda()
+    ogn.to(device)
     total_loss = 0.0
     i = 0
     num_items = 0
     while i < batch_per_epoch:
-        for ginput in trainloader:
+        for ginput in tqdm(trainloader):
             if i >= batch_per_epoch:
                 break
             opt.zero_grad()
-            ginput.x = ginput.x.cuda()
-            ginput.y = ginput.y.cuda()
-            ginput.edge_index = ginput.edge_index.cuda()
-            ginput.batch = ginput.batch.cuda()
+            ginput.x = ginput.x.to(device)
+            ginput.y = ginput.y.to(device)
+            ginput.edge_index = ginput.edge_index.to(device)
+            ginput.batch = ginput.batch.to(device)
             if test in ["_l1_", "_kl_"]:
                 loss, reg = new_loss(ogn, ginput, square=False)
                 ((loss + reg) / int(ginput.batch[-1] + 1)).backward()
