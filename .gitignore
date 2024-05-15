@@ -5,3 +5,7 @@
 simulations/playground.ipynb
 papers
 *.ipynb
+*.pkl
+wandb
+train_runs
+simulations/models.py

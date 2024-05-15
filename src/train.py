@@ -1,200 +1,197 @@
-from datasets import ParticleDynamicsDataset
-from torch_geometric.data import DataLoader
-from models import OGN
-from utils import get_edge_index, seed_everything, seed_worker
-from tqdm import tqdm
-import torch
-import numpy as np
-import random
-from torch.optim.lr_scheduler import ReduceLROnPlateau, OneCycleLR
-from icecream import ic
-from accelerate import Accelerator
+import argparse
+import os
 import wandb
-
-
-wandb.init(project="symbolic_distillation")
-# Set random seed for reproducibility
-seed_everything(42)
-acclerator = Accelerator()
-device = acclerator.device
-print(f"Using device: {device}")
-
-# load data
-train_set = ParticleDynamicsDataset(
-    root="data/particle_dynamics/reduced_spring",
-    split="train",
-    train_val_test_split=[0.375, 0.125, 0.5],
-)
-val_set = ParticleDynamicsDataset(
-    root="data/particle_dynamics/reduced_spring", split="val"
-)
-new_val_set = ParticleDynamicsDataset(
-    root="data/particle_dynamics/reduced_spring", split="val"
-)
-print("loaded  data")
-ic(len(train_set), len(val_set))
-
-# initialise data loaders
-batch = 64
-g = torch.Generator()
-g.manual_seed(0)
-
-train_loader = DataLoader(
-    train_set,
-    batch_size=batch,
-    shuffle=True,
+import yaml
+from accelerate import Accelerator
+import torch
+from torch_geometric.data import DataLoader
+from torch.utils.data import Subset
+from torch.optim.lr_scheduler import OneCycleLR
+from datasets import ParticleDynamicsDataset
+from tqdm import tqdm
+from utils import (
+    make_dir,
+    seed_everything,
+    model_factory,
+    loss_factory,
 )
 
-val_loader = DataLoader(val_set, batch_size=1024, shuffle=False)
-newtestloader = DataLoader(
-    [Data(X_test[i], edge_index=edge_index, y=y_test[i]) for i in test_idxes],
-    batch_size=len(X_test),
-    shuffle=False,
-)
-print("loaded data loaders")
-ic(len(train_loader), len(val_loader))
 
-# define training params
-n_f = 6  # number of node features
-msg_dim = 100  # message dimension
-dim = 2  # spatial dimensions
-hidden = 300  # number of units in hidden layers
-aggr = "add"  # aggregation method
-n = 4  # number of bodies
-sim = "spring"  # simulation type
-epoch = 0  # epoch number
-total_epochs = 3  # total number of epochs
-batch_per_epoch = int(1000 * 10 / (batch / 32.0))  # number of batches per epoch
-init_lr = 1e-3  # initial learning rate
-test = "_l1_"  # loss function
+def main(config):
+    # Set the random seed for reproducibility.
+    seed_everything(config["seed"])
 
+    # Create the output directory for the run if it does not exist.
+    output_dir = config["output_dir"]
 
-def new_loss(self, g, augment=False, square=False):
-    if square:
-        return torch.sum((g.y - self.just_derivative(g, augment=augment)) ** 2)
-    else:
-        base_loss = torch.sum(
-            torch.abs(g.y - self.just_derivative(g, augment=augment))
-        )
-        if test in ["_l1_", "_kl_"]:
-            s1 = g.x[self.edge_index[0]]
-            s2 = g.x[self.edge_index[1]]
-            m12 = self.message(s1, s2)
-            regularization = 1e-2
-            # Want one loss value per row of g.y:
-            normalized_l05 = torch.sum(torch.abs(m12))
-            return (
-                base_loss,
-                regularization * batch * normalized_l05 / n**2 * n,
+    # Create output directory to save model weights during training.
+    weights_dir_path = os.path.join(output_dir, "model_weights")
+    make_dir(weights_dir_path)
+
+    if os.path.exists(".git"):
+        # Add the git hash to the config if the .git file exists.
+        config["git_hash"] = os.popen("git rev-parse HEAD").read().strip()
+
+    if config["wandb"]:
+        # Use wandb to log the run.
+        run = wandb.init(project=config["wandb_project"], config=config)
+        run_url = run.get_url()
+        config["run_url"] = run_url
+
+    # Save the config to the output directory for reproducibility.
+    config_file = os.path.join(output_dir, "train_config.yaml")
+    with open(config_file, "w") as f:
+        yaml.dump(config, f)
+
+    print("-" * 50)
+    print("[INFO] Config options set.")
+    for key, val in config.items():
+        print(f"[INFO] {key}: {val}")
+    print("-" * 50)
+
+    # Set the device to use for training. GPU -> MPS -> CPU.
+    accelerator = Accelerator()
+    device = accelerator.device
+    print(f"[INFO] Device set to: {device}")
+
+    # Initialise transforms.
+    # augmentations = tranforms_factory(config["augmentations"])
+
+    # Load the training and validation datasets.
+    train_dir = os.path.join(config["data_dir"], "train")
+    val_dir = os.path.join(config["data_dir"], "val")
+
+    train_dataset = ParticleDynamicsDataset(root=train_dir)
+
+    val_dataset = ParticleDynamicsDataset(root=val_dir)
+
+    if config["quick_test"]:
+        # Create smaller subsets of the datasets for quick testing.
+        train_indices = list(range(config["train_batch_size"]))
+        val_indices = list(range(config["val_batch_size"]))
+
+        train_dataset = Subset(train_dataset, train_indices)
+        val_dataset = Subset(val_dataset, val_indices)
+
+    # Initialise dataloaders.
+    train_loader = DataLoader(
+        train_dataset, batch_size=config["train_batch_size"], shuffle=True
+    )
+
+    val_loader = DataLoader(
+        val_dataset, batch_size=config["val_batch_size"], shuffle=False
+    )
+
+    # Initialise the model.
+    model = model_factory(config["model"], config["model_params"])
+
+    # Initialise the optimiser.
+    total_epochs = config["epochs"]
+    lr = config["lr"]
+    optim = torch.optim.Adam(
+        model.parameters(), lr=lr, weight_decay=config["weight_decay"]
+    )
+
+    max_lr = config["scheduler_params"]["max_lr"]
+    final_div_factor = config["scheduler_params"]["final_div_factor"]
+    sched = OneCycleLR(
+        optim,
+        max_lr=max_lr,
+        steps_per_epoch=len(train_loader),
+        epochs=total_epochs,
+        final_div_factor=final_div_factor,
+    )
+
+    # Initialise the loss function.
+    loss_fn = loss_factory(config["loss"], config["loss_params"])
+
+    # TODO: Check if optim and sched need to be moved?
+    model, optim, sched, train_loader, val_loader = accelerator.prepare(
+        model, optim, sched, train_loader, val_loader
+    )
+
+    # TODO: Remove this for the full training loop.
+    batch_per_epoch = int(1000 * 10 / (config["train_batch_size"] / 32.0))
+
+    # Set max validation loss to infinity.
+    max_val_loss = float("inf")
+
+    # Training loop.
+    for epoch in range(1, total_epochs + 1):
+        total_train_loss = 0
+        total_val_loss = 0
+
+        print(f"Epoch {epoch}/{total_epochs}")
+
+        # Training phase
+        model.train()
+        train_loader_iter = tqdm(train_loader, desc=f"Training Epoch {epoch}")
+        for i, graph in enumerate(train_loader_iter):
+            if i >= batch_per_epoch:
+                break
+
+            optim.zero_grad()
+            pred = model(graph)
+            loss = loss_fn(graph, pred, model)
+
+            loss.backward()
+            optim.step()
+            sched.step()
+
+            total_train_loss += loss.item()
+
+            train_loader_iter.set_postfix(avg_loss=total_train_loss / (i + 1))
+
+        avg_train_loss = total_train_loss / len(train_loader)
+        if config["wandb"]:
+            wandb.log({"avg_train_loss": avg_train_loss})
+
+        # Validation phase
+        model.eval()
+        with torch.no_grad():
+            val_loader_iter = tqdm(val_loader, desc=f"Validation Epoch {epoch}")
+            for graph in val_loader_iter:
+                pred = model(graph)
+                val_loss = loss_fn(graph, pred, model).item()
+                total_val_loss += val_loss
+
+                val_loader_iter.set_postfix(loss=val_loss)
+
+            avg_val_loss = total_val_loss / len(val_loader)
+            if config["wandb"]:
+                wandb.log({"avg_val_loss": avg_val_loss})
+
+        if total_val_loss < max_val_loss:
+            torch.save(
+                model.state_dict(),
+                os.path.join(weights_dir_path, "best_model.pth"),
+            )
+            print(
+                f"[INFO] Average validation loss improved from {max_val_loss}"
+                f" to {avg_val_loss}, saving model weights..."
             )
 
-        return base_loss
+            # Update the max validation loss.
+            max_val_loss = total_val_loss
+
+        if (epoch + 1) % config["save_every_n_epochs"] == 0:
+            torch.save(
+                model.state_dict(),
+                os.path.join(weights_dir_path, f"model_epoch_{epoch+1}.pt"),
+            )
+            print(f"Model saved at epoch {epoch+1}..")
 
 
-def get_messages(ogn):
-    def get_message_info(tmp):
-        ogn.cpu()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train a DDPM model.")
+    parser.add_argument(
+        "config",
+        type=str,
+        help="Path to the yaml train config file.",
+    )
+    args = parser.parse_args()
 
-        s1 = tmp.x[tmp.edge_index[0]]
-        s2 = tmp.x[tmp.edge_index[1]]
-        tmp = torch.cat([s1, s2], dim=1)  # tmp has shape [E, 2 * in_channels]
-        if test == "_kl_":
-            raw_msg = ogn.msg_fnc(tmp)
-            mu = raw_msg[:, 0::2]
-            logvar = raw_msg[:, 1::2]
+    with open(args.config, "r") as f:
+        config = yaml.safe_load(f)
 
-            m12 = mu
-        else:
-            m12 = ogn.msg_fnc(tmp)
-
-        all_messages = torch.cat((s1, s2, m12), dim=1)
-        if dim == 2:
-            columns = [
-                elem % (k)
-                for k in range(1, 3)
-                for elem in "x%d y%d vx%d vy%d q%d m%d".split(" ")
-            ]
-            columns += ["e%d" % (k,) for k in range(msg_dim)]
-        elif dim == 3:
-            columns = [
-                elem % (k)
-                for k in range(1, 3)
-                for elem in "x%d y%d z%d vx%d vy%d vz%d q%d m%d".split(" ")
-            ]
-            columns += ["e%d" % (k,) for k in range(msg_dim)]
-
-        return pd.DataFrame(
-            data=all_messages.cpu().detach().numpy(), columns=columns
-        )
-
-    msg_info = []
-    for i, g in enumerate(newtestloader):
-        msg_info.append(get_message_info(g))
-
-    msg_info = pd.concat(msg_info)
-    msg_info["dx"] = msg_info.x1 - msg_info.x2
-    msg_info["dy"] = msg_info.y1 - msg_info.y2
-    if dim == 2:
-        msg_info["r"] = np.sqrt((msg_info.dx) ** 2 + (msg_info.dy) ** 2)
-    elif dim == 3:
-        msg_info["dz"] = msg_info.z1 - msg_info.z2
-        msg_info["r"] = np.sqrt(
-            (msg_info.dx) ** 2 + (msg_info.dy) ** 2 + (msg_info.dz) ** 2
-        )
-
-    return msg_info
-
-
-# initialise model, optimiser and scheduler
-ogn = OGN(
-    n_f,
-    msg_dim,
-    dim,
-    dt=0.1,
-    hidden=hidden,
-    edge_index=get_edge_index(n, sim),
-    aggr=aggr,
-).to(device)
-opt = torch.optim.Adam(ogn.parameters(), lr=init_lr, weight_decay=1e-8)
-sched = OneCycleLR(
-    opt,
-    max_lr=init_lr,
-    steps_per_epoch=batch_per_epoch,  # len(trainloader)
-    epochs=total_epochs,
-    final_div_factor=1e5,
-)
-
-# training loop
-for epoch in tqdm(range(epoch, total_epochs)):
-    total_loss = 0.0
-    i = 0
-    num_items = 0
-    for ginput in train_loader:
-        opt.zero_grad()
-        ginput.x = ginput.x.to(device)
-        ginput.y = ginput.y.to(device)
-        ginput.edge_index = ginput.edge_index.to(device)
-        ginput.batch = ginput.batch.to(device)
-        loss, reg = new_loss(ogn, ginput, square=False)
-        ((loss + reg) / int(ginput.batch[-1] + 1)).backward()
-        opt.step()
-        # sched.step()
-
-        total_loss += loss.item()
-        i += 1
-        num_items += int(ginput.batch[-1] + 1)
-
-    cur_loss = total_loss / num_items
-    print(cur_loss)
-
-    cur_loss = total_loss / num_items
-    print(cur_loss)
-    cur_msgs = get_messages(ogn)
-    cur_msgs["epoch"] = epoch
-    cur_msgs["loss"] = cur_loss
-    messages_over_time.append(cur_msgs)
-
-    ogn.cpu()
-    from copy import deepcopy as copy
-
-    recorded_models.append(ogn.state_dict())
+    main(config)
