@@ -5,6 +5,7 @@ import yaml
 from accelerate import Accelerator
 import torch
 from torch_geometric.data import DataLoader
+from torch_geometric.transforms import Compose
 from torch.utils.data import Subset
 from torch.optim.lr_scheduler import OneCycleLR
 from datasets import ParticleDynamicsDataset
@@ -12,6 +13,7 @@ from tqdm import tqdm
 from utils import (
     make_dir,
     seed_everything,
+    tranforms_factory,
     model_factory,
     loss_factory,
 )
@@ -27,6 +29,11 @@ def main(config):
     # Create output directory to save model weights during training.
     weights_dir_path = os.path.join(output_dir, "model_weights")
     make_dir(weights_dir_path)
+
+    # if config['save_messages']:
+    #     # Create output directory to save messages during training.
+    #     messages_dir_path = os.path.join(output_dir, "training_messages")
+    #     make_dir(messages_dir_path)
 
     if os.path.exists(".git"):
         # Add the git hash to the config if the .git file exists.
@@ -54,16 +61,32 @@ def main(config):
     device = accelerator.device
     print(f"[INFO] Device set to: {device}")
 
-    # Initialise transforms.
-    # augmentations = tranforms_factory(config["augmentations"])
+    # Initialise transforms if specified in the configuration.
+    if "augmentations" in config:
+        augmentations = Compose(
+            tranforms_factory(k, v) for k, v in config["augmentations"].items()
+        )
+    else:
+        augmentations = None
+
+    if "pre_transforms" in config:
+        pre_transforms = Compose(
+            tranforms_factory(k, v) for k, v in config["pre_transforms"].items()
+        )
+    else:
+        pre_transforms = None
 
     # Load the training and validation datasets.
     train_dir = os.path.join(config["data_dir"], "train")
     val_dir = os.path.join(config["data_dir"], "val")
 
-    train_dataset = ParticleDynamicsDataset(root=train_dir)
+    train_dataset = ParticleDynamicsDataset(
+        root=train_dir, transform=augmentations, pre_transform=pre_transforms
+    )
 
-    val_dataset = ParticleDynamicsDataset(root=val_dir)
+    val_dataset = ParticleDynamicsDataset(
+        root=val_dir, pre_transform=pre_transforms
+    )
 
     if config["quick_test"]:
         # Create smaller subsets of the datasets for quick testing.
@@ -118,12 +141,10 @@ def main(config):
 
     # Training loop.
     for epoch in range(1, total_epochs + 1):
-        total_train_loss = 0
-        total_val_loss = 0
-
         print(f"Epoch {epoch}/{total_epochs}")
 
         # Training phase
+        total_train_loss = 0
         model.train()
         train_loader_iter = tqdm(train_loader, desc=f"Training Epoch {epoch}")
         for i, graph in enumerate(train_loader_iter):
@@ -147,6 +168,7 @@ def main(config):
             wandb.log({"avg_train_loss": avg_train_loss})
 
         # Validation phase
+        total_val_loss = 0
         model.eval()
         with torch.no_grad():
             val_loader_iter = tqdm(val_loader, desc=f"Validation Epoch {epoch}")
@@ -161,7 +183,7 @@ def main(config):
             if config["wandb"]:
                 wandb.log({"avg_val_loss": avg_val_loss})
 
-        if total_val_loss < max_val_loss:
+        if avg_val_loss < max_val_loss:
             torch.save(
                 model.state_dict(),
                 os.path.join(weights_dir_path, "best_model.pth"),
@@ -174,6 +196,7 @@ def main(config):
             # Update the max validation loss.
             max_val_loss = total_val_loss
 
+        # Save the model weights every n epochs.
         if (epoch + 1) % config["save_every_n_epochs"] == 0:
             torch.save(
                 model.state_dict(),

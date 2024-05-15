@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 import sys
 from models import GNN
 from losses import LossWithL1MessageReg
+from transforms import RandomTranslate
 
 
 def get_edge_index(sim_fname):
@@ -95,12 +96,17 @@ def make_dir(dir_path):
         sys.exit(1)
 
 
-def tranforms_factory(transform_dict):
+def tranforms_factory(transform_key, transform_params):
     """
     Takes in a dictionary with keys as the transform names and values as the
     transform parameters and returns a transforms.Compose object.
     """
-    pass
+    tranforms_dict = {
+        "random_translate": RandomTranslate,
+    }
+
+    transform = tranforms_dict[transform_key](**transform_params)
+    return transform
 
 
 def loss_factory(loss, loss_params):

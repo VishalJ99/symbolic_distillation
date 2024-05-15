@@ -40,13 +40,12 @@ loss_params:                      # Parameters for the loss function initializat
 
 # # Transforms settings
 # pre_transforms:                   # Pre-transforms to apply to the dataset
-#   - 'Transform1'                  # Replace with actual transform names and parameters
-#   - 'Transform2'                  # Example: [ 'Transform1', 'Transform2' ]
-# augmentations:                    # Augmentations to apply during training
-#   - 'Augmentation1'               # Replace with actual augmentation names and parameters
-#   - 'Augmentation2'               # Example: [ 'Augmentation1', 'Augmentation2' ]
+#   transform_1:
+#      transform_1_params                 # Replace with actual transform names and parameters
 
-# Example specific settings (if applicable)
-# These settings are placeholders and should be adapted to your specific model and dataset.
-# example_param1: 'value1'
-# example_param2: 'value2'
+augmentations:                    # Augmentations to apply during training
+  random_translate:
+    scale: 3
+    dims:
+      - 0
+      - 1
