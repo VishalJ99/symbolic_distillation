@@ -1,16 +1,29 @@
-import torch
 import numpy as np
 import os
 import random
 import torch
 from sklearn.model_selection import train_test_split
+import sys
+from models import GNN
+from losses import LossWithL1MessageReg
 
 
-def get_edge_index(n, sim):
+def get_edge_index(sim_fname):
     """
-    Code taken from:
+    Code modified from:
     https://github.com/MilesCranmer/symbolic_deep_learning/blob/master/models.py
     """
+    # Load sim hyper params from fname. Assumes format used by `run_sims.py`.
+    sim_fname = sim_fname.split(".")[0]
+    sim_hyperparams_dict = {}
+    for kv in sim_fname.split("_"):
+        if "=" in kv:
+            k, v = kv.split("=")
+            sim_hyperparams_dict[k] = v
+
+    sim = sim_hyperparams_dict["sim"]
+    n = int(sim_hyperparams_dict["body"])
+
     if sim in ["string", "string_ball"]:
         # Should just be along it.
         top = torch.arange(0, n - 1)
@@ -71,8 +84,45 @@ def seed_everything(seed):
         torch.backends.cudnn.benchmark = False
 
 
-def seed_worker(worker_id):
-    worker_seed = torch.initial_seed() % 2**32
-    np.random.seed(worker_seed)
-    random.seed(worker_seed)
-    torch.manual_seed(worker_seed)
+def make_dir(dir_path):
+    """
+    Makes a directory if it does not exist. Otherwise, logs a message and exits.
+    """
+    try:
+        os.makedirs(dir_path)
+    except OSError:
+        print(f"Directory: {dir_path} already exists..." " Exiting.")
+        sys.exit(1)
+
+
+def tranforms_factory(transform_dict):
+    """
+    Takes in a dictionary with keys as the transform names and values as the
+    transform parameters and returns a transforms.Compose object.
+    """
+    pass
+
+
+def loss_factory(loss, loss_params):
+    """
+    Takes in a dictionary with keys as the loss names and values as the
+    loss parameters and returns a loss function.
+    """
+    loss_dict = {
+        "loss+l1reg": LossWithL1MessageReg,
+    }
+
+    loss_fn = loss_dict[loss](**loss_params)
+    return loss_fn
+
+
+def model_factory(model, model_params):
+    """
+    Takes in a dictionary with keys as the model names and values as the
+    model parameters and returns a model object.
+    """
+    model_dict = {
+        "gnn": GNN,
+    }
+    model = model_dict[model](**model_params)
+    return model
