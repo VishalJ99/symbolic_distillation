@@ -9,3 +9,4 @@ papers
 wandb
 train_runs
 simulations/models.py
+*.gif

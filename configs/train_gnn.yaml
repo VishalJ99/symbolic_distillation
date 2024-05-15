@@ -21,7 +21,7 @@ model_params:                     # Parameters for the model initialization
   aggr: 'add'                     # Example model parameter (aggregation method)
 
 # Training settings
-epochs: 10                       # Number of epochs to train
+epochs: 30                       # Number of epochs to train
 train_batch_size: 64              # Training batch size
 val_batch_size: 1024                # Validation batch size
 lr: 0.001                         # Learning rate
