@@ -188,7 +188,7 @@ def main(config):
         if avg_val_loss < max_val_loss:
             torch.save(
                 model.state_dict(),
-                os.path.join(weights_dir_path, "best_model.pth"),
+                os.path.join(weights_dir_path, "best_model.pt"),
             )
             print(
                 f"[INFO] Average validation loss improved from {max_val_loss}"
