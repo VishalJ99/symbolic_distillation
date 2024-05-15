@@ -136,9 +136,6 @@ def main(config):
         model, optim, sched, train_loader, val_loader
     )
 
-    # TODO: Remove this for the full training loop.
-    batch_per_epoch = int(1000 * 10 / (config["train_batch_size"] / 32.0))
-
     # Set max validation loss to infinity.
     max_val_loss = float("inf")
 
@@ -151,9 +148,6 @@ def main(config):
         model.train()
         train_loader_iter = tqdm(train_loader, desc=f"Training Epoch {epoch}")
         for i, graph in enumerate(train_loader_iter):
-            if i >= batch_per_epoch:
-                break
-
             optim.zero_grad()
             pred = model(graph)
             loss = loss_fn(graph, pred, model)
@@ -196,7 +190,7 @@ def main(config):
             )
 
             # Update the max validation loss.
-            max_val_loss = total_val_loss
+            max_val_loss = avg_val_loss
 
         # Save the model weights every n epochs.
         if (epoch + 1) % config["save_every_n_epochs"] == 0:
@@ -209,16 +203,18 @@ def main(config):
         if config["save_messages"]:
             # Save node features and msgs for each edge in the val set as a df.
             pbar = tqdm(val_loader, desc="Saving node messages")
+            msgs_recorded = 0
             df_list = []
-
             for graph in pbar:
-                df = get_node_message_info_df(
-                    graph, model, dim=(graph.x.shape[1] - 2) // 2
-                )
-                df_list.append(df)
+                # Only record 10k messages per epoch.
+                while msgs_recorded < 10000:
+                    df = get_node_message_info_df(
+                        graph, model, dim=(graph.x.shape[1] - 2) // 2
+                    )
+                    msgs_recorded += len(df)
+                    df_list.append(df)
 
             df = pd.concat(df_list)
-
             node_message_save_path = os.path.join(
                 messages_dir_path, f"node_messages_epoch_{epoch}.csv"
             )
