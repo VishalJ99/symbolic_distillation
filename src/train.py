@@ -16,7 +16,10 @@ from utils import (
     tranforms_factory,
     model_factory,
     loss_factory,
+    get_node_message_info_df,
 )
+
+import pandas as pd
 
 
 def main(config):
@@ -30,10 +33,10 @@ def main(config):
     weights_dir_path = os.path.join(output_dir, "model_weights")
     make_dir(weights_dir_path)
 
-    # if config['save_messages']:
-    #     # Create output directory to save messages during training.
-    #     messages_dir_path = os.path.join(output_dir, "training_messages")
-    #     make_dir(messages_dir_path)
+    if config["save_messages"]:
+        # Create output directory to save messages during training.
+        messages_dir_path = os.path.join(output_dir, "training_messages")
+        make_dir(messages_dir_path)
 
     if os.path.exists(".git"):
         # Add the git hash to the config if the .git file exists.
@@ -176,7 +179,6 @@ def main(config):
                 pred = model(graph)
                 val_loss = loss_fn(graph, pred, model).item()
                 total_val_loss += val_loss
-
                 val_loader_iter.set_postfix(loss=val_loss)
 
             avg_val_loss = total_val_loss / len(val_loader)
@@ -203,6 +205,27 @@ def main(config):
                 os.path.join(weights_dir_path, f"model_epoch_{epoch+1}.pt"),
             )
             print(f"Model saved at epoch {epoch+1}..")
+
+        if config["save_messages"]:
+            # Save node features and msgs for each edge in the val set as a df.
+            pbar = tqdm(val_loader, desc="Saving node messages")
+            df_list = []
+
+            for graph in pbar:
+                df = get_node_message_info_df(
+                    graph, model, dim=(graph.x.shape[1] - 2) // 2
+                )
+                df_list.append(df)
+
+            df = pd.concat(df_list)
+
+            node_message_save_path = os.path.join(
+                messages_dir_path, f"node_messages_epoch_{epoch}.csv"
+            )
+
+            df.to_csv(node_message_save_path, index=False)
+
+            pbar.close()
 
 
 if __name__ == "__main__":

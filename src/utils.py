@@ -7,6 +7,9 @@ import sys
 from models import GNN
 from losses import LossWithL1MessageReg
 from transforms import RandomTranslate
+from torch_geometric.data import Data
+from torch_geometric.nn import MessagePassing
+import pandas as pd
 
 
 def get_edge_index(sim_fname):
@@ -132,3 +135,44 @@ def model_factory(model, model_params):
     }
     model = model_dict[model](**model_params)
     return model
+
+
+def get_node_message_info_df(graph: Data, model: MessagePassing, dim: int):
+    s = graph.x[graph.edge_index[0]]  # sending nodes
+    r = graph.x[graph.edge_index[1]]  # recieving nodes
+    msg = model.message(s, r)
+
+    all_info = torch.cat((s, r, msg), dim=1)
+
+    # Add node feature columns.
+    if dim == 2:
+        columns = [
+            elem % (k)
+            for k in range(1, 3)
+            for elem in "x%d y%d vx%d vy%d q%d m%d".split(" ")
+        ]
+    elif dim == 3:
+        columns = [
+            elem % (k)
+            for k in range(1, 3)
+            for elem in "x%d y%d z%d vx%d vy%d vz%d q%d m%d".split(" ")
+        ]
+
+    # Add the message columns.
+    columns += ["e%d" % (k,) for k in range(msg.shape[-1])]
+
+    df = pd.DataFrame(data=all_info.cpu().detach().numpy(), columns=columns)
+
+    # Create columns for the distance between the nodes.
+    # Useful for performing symbolic regression.
+    df["dx"] = df.x1 - df.x2
+    df["dy"] = df.y1 - df.y2
+
+    if dim == 2:
+        df["r"] = np.sqrt((df.dx) ** 2 + (df.dy) ** 2)
+
+    elif dim == 3:
+        df["dz"] = df.z1 - df.z2
+        df["r"] = np.sqrt((df.dx) ** 2 + (df.dy) ** 2 + (df.dz) ** 2)
+
+    return df
