@@ -44,8 +44,8 @@ def new_loss(self, g, augment=True, square=False):
             torch.abs(g.y - self.just_derivative(g, augment=augment))
         )
         if test in ["_l1_", "_kl_"]:
-            s1 = g.x[self.edge_index[0]]
-            s2 = g.x[self.edge_index[1]]
+            s1 = g.x[g.edge_index[0]]
+            s2 = g.x[g.edge_index[1]]
             batch = int(g.batch[-1] + 1)
             if test == "_l1_":
                 m12 = self.message(s1, s2)
@@ -53,9 +53,9 @@ def new_loss(self, g, augment=True, square=False):
                 # Want one loss value per row of g.y:
                 normalized_l05 = torch.sum(torch.abs(m12))
                 return (
-                    base_loss,
-                    (regularization * batch * normalized_l05 * n)
-                    / (n * (n - 1)),
+                    base_loss / (batch * n) ,
+                    (regularization * normalized_l05)
+                    / (batch * n * (n - 1)),
                 )
             elif test == "_kl_":
                 regularization = 1
@@ -224,7 +224,7 @@ for epoch in tqdm(range(1, total_epochs + 1)):
             ginput.batch = ginput.batch.to(device)
             if test in ["_l1_", "_kl_"]:
                 loss, reg = new_loss(ogn, ginput, square=False)
-                ((loss + reg) / (n * int(ginput.batch[-1] + 1))).backward()
+                (loss + reg).backward()
             else:
                 loss = ogn.loss(ginput, square=False)
                 (loss / int(ginput.batch[-1] + 1)).backward()
@@ -245,7 +245,7 @@ for epoch in tqdm(range(1, total_epochs + 1)):
     recorded_models.append(ogn.state_dict())
 
     pkl.dump(
-        messages_over_time, open("messages_over_time_clb_new_loss.pkl", "wb")
+        messages_over_time, open("messages_over_time_clb_correct_loss.pkl", "wb")
     )
 
-    pkl.dump(recorded_models, open("models_over_time_clb_new_loss.pkl", "wb"))
+    pkl.dump(recorded_models, open("models_over_time_clb_correct_loss.pkl", "wb"))
