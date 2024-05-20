@@ -10,3 +10,5 @@ wandb
 train_runs
 simulations/models.py
 *.gif
+*.png
+*.pt

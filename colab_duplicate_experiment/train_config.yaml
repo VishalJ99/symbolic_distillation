@@ -1,0 +1,35 @@
+augmentations:
+  random_translate:
+    dims:
+    - 0
+    - 1
+    scale: 3
+data_dir: data/colab_spring_2d_4_body
+epochs: 100
+git_hash: aff670434f37392adecb1e690fda9ce896091fb6
+loss: loss+l1reg
+loss_params:
+  l1_weight: 0.01
+  square: false
+lr: 0.001
+model: gnn
+model_params:
+  aggr: add
+  hidden: 300
+  msg_dim: 100
+  n_f: 6
+  ndim: 2
+output_dir: ./colab_duplicate_experiment
+quick_test: true
+run_url: https://wandb.ai/vishaljain/mphil_project/runs/9qvtrbvg
+save_every_n_epochs: 5
+save_messages: true
+scheduler_params:
+  final_div_factor: 100000.0
+  max_lr: 0.001
+seed: 42
+train_batch_size: 64
+val_batch_size: 1024
+wandb: true
+wandb_project: mphil_project
+weight_decay: 1.0e-08

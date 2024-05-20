@@ -20,6 +20,9 @@ from utils import (
 )
 
 import pandas as pd
+import numpy as np
+from icecream import ic
+from models import OGN
 
 
 def main(config):
@@ -80,36 +83,107 @@ def main(config):
         pre_transforms = None
 
     # Load the training and validation datasets.
-    train_dir = os.path.join(config["data_dir"], "train")
-    val_dir = os.path.join(config["data_dir"], "val")
+    # train_dir = os.path.join(config["data_dir"], "train")
+    # val_dir = os.path.join(config["data_dir"], "val")
 
-    train_dataset = ParticleDynamicsDataset(
-        root=train_dir, transform=augmentations, pre_transform=pre_transforms
+    # train_dataset = ParticleDynamicsDataset(
+    #     root=train_dir, transform=augmentations, pre_transform=pre_transforms
+    # )
+
+    # val_dataset = ParticleDynamicsDataset(
+    #     root=val_dir, pre_transform=pre_transforms
+    # )
+
+    # if config["quick_test"]:
+    #     # Create smaller subsets of the datasets for quick testing.
+    #     train_indices = list(range(config["train_batch_size"]))
+    #     val_indices = list(range(config["val_batch_size"]))
+
+    #     train_dataset = Subset(train_dataset, train_indices)
+    #     val_dataset = Subset(val_dataset, val_indices)
+
+    # # Initialise dataloaders.
+    # train_loader = DataLoader(
+    #     train_dataset, batch_size=config["train_batch_size"], shuffle=True
+    # )
+
+    # val_loader = DataLoader(
+    #     val_dataset, batch_size=config["val_batch_size"], shuffle=False
+    # )
+
+    # --------------------------------------------
+    # loss debugging code
+    from utils import get_edge_index
+    from torch_geometric.data import Data, DataLoader
+    from sklearn.model_selection import train_test_split
+
+    # Manually load a single graph of data
+    fname = "sim=spring_ns=7500_seed=0_n_body=4_dim=2_nt=1000_dt=1e-02_data.npy"
+    data = np.load("simulations/data.npy")
+    accel_data = np.load("simulations/accel_data.npy")
+
+    edge_index = get_edge_index(fname)
+
+    X = torch.from_numpy(
+        np.concatenate([data[:, i] for i in range(0, data.shape[1], 5)])
     )
 
-    val_dataset = ParticleDynamicsDataset(
-        root=val_dir, pre_transform=pre_transforms
+    y = torch.from_numpy(
+        np.concatenate([accel_data[:, i] for i in range(0, data.shape[1], 5)])
     )
 
-    if config["quick_test"]:
-        # Create smaller subsets of the datasets for quick testing.
-        train_indices = list(range(config["train_batch_size"]))
-        val_indices = list(range(config["val_batch_size"]))
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, shuffle=False, random_state=42
+    )
 
-        train_dataset = Subset(train_dataset, train_indices)
-        val_dataset = Subset(val_dataset, val_indices)
-
-    # Initialise dataloaders.
+    batch = 64
+    X_train = X_train[:64]
+    y_train = y_train[:64]
     train_loader = DataLoader(
-        train_dataset, batch_size=config["train_batch_size"], shuffle=True
+        [
+            Data(X_train[i], edge_index=edge_index, y=y_train[i])
+            for i in range(len(y_train))
+        ],
+        batch_size=batch,
+        shuffle=False,
     )
 
     val_loader = DataLoader(
-        val_dataset, batch_size=config["val_batch_size"], shuffle=False
+        [
+            Data(X_train[i], edge_index=edge_index, y=y_train[i])
+            for i in range(len(y_train))
+        ],
+        batch_size=batch,
+        shuffle=False,
     )
 
     # Initialise the model.
-    model = model_factory(config["model"], config["model_params"])
+    # model = model_factory(config["model"], config["model_params"])
+    # Hyper params
+    # ---------------
+    sim = "spring"
+    aggr = "add"
+    hidden = 300
+    test = "_l1_"
+    msg_dim = 100
+    n_f = data.shape[3]
+    n = data.shape[2]
+    init_lr = 1e-3
+    total_epochs = 100
+    dim = 2
+
+    model = OGN(
+        n_f,
+        msg_dim,
+        dim,
+        dt=0.1,
+        hidden=hidden,
+        edge_index=edge_index,
+        aggr=aggr,
+    ).to(device)
+
+    # Load state dict for consistent testing
+    model.load_state_dict(torch.load("model_state_dict_colab.pt"))
 
     # Initialise the optimiser.
     total_epochs = config["epochs"]
@@ -148,8 +222,13 @@ def main(config):
         model.train()
         train_loader_iter = tqdm(train_loader, desc=f"Training Epoch {epoch}")
         for i, graph in enumerate(train_loader_iter):
+            # ic(graph.x, graph.y)
             optim.zero_grad()
-            pred = model(graph)
+            pred = model(graph.x, graph.edge_index)
+            # ic(pred)
+            # torch.save(pred, "pred.pt")
+
+            # pred = model(graph)
             loss = loss_fn(graph, pred, model)
 
             loss.backward()
@@ -159,6 +238,9 @@ def main(config):
             total_train_loss += loss.item()
 
             train_loader_iter.set_postfix(avg_loss=total_train_loss / (i + 1))
+            break
+
+        break
 
         avg_train_loss = total_train_loss / len(train_loader)
         if config["wandb"]:
@@ -206,7 +288,7 @@ def main(config):
             msgs_recorded = 0
             df_list = []
             for graph in pbar:
-                # Only record 10k messages per epoch.
+                # Only record 10k messages per epoch to avoid large file sizes.
                 while msgs_recorded < 10000:
                     df = get_node_message_info_df(
                         graph, model, dim=(graph.x.shape[1] - 2) // 2

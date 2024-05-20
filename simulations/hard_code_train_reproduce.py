@@ -12,12 +12,11 @@ from tqdm import tqdm
 import pandas as pd
 import pickle as pkl
 from copy import deepcopy as copy
-from utils import seed_everything
 from accelerate import Accelerator
 
-seed_everything(42)
 accelerate = Accelerator()
 device = accelerate.device
+from icecream import ic
 
 
 # Custom funcs
@@ -37,13 +36,14 @@ def get_edge_index(n, sim):
     return edge_index
 
 
-def new_loss(self, g, augment=True, square=False):
+def new_loss(self, g, augment=False, square=False):
     if square:
         return torch.sum((g.y - self.just_derivative(g, augment=augment)) ** 2)
     else:
         base_loss = torch.sum(
             torch.abs(g.y - self.just_derivative(g, augment=augment))
         )
+        print("base_loss", base_loss)
         if test in ["_l1_", "_kl_"]:
             s1 = g.x[self.edge_index[0]]
             s2 = g.x[self.edge_index[1]]
@@ -52,10 +52,18 @@ def new_loss(self, g, augment=True, square=False):
                 regularization = 1e-2
                 # Want one loss value per row of g.y:
                 normalized_l05 = torch.sum(torch.abs(m12))
-                return (
-                    base_loss,
-                    regularization * batch * normalized_l05 / n**2 * n,
+                batch = int(g.batch[-1] + 1)
+                reg_weight = (regularization * batch * n) / (n * (n - 1))
+                print("summed abs edge msg", normalized_l05)
+                print(
+                    "l1_reg_weight",
+                    (regularization * batch * n) / (n * (n - 1)),
                 )
+                print(
+                    f"{regularization} * {batch} * {n} / {n}({n-1}) = ",
+                    reg_weight,
+                )
+                return (base_loss, reg_weight * normalized_l05)
             elif test == "_kl_":
                 regularization = 1
                 # Want one loss value per row of g.y:
@@ -125,12 +133,8 @@ def get_messages(ogn):
 
 
 # Load the data - change this to data of the right shape.
-data = np.load(
-    "data/particle_dynamics/reduced_spring/raw/sim=spring_ns=20000_seed=42_n_body=4_dim=2_nt=200_dt=1e-02_data.npy"
-)
-accel_data = np.load(
-    "data/particle_dynamics/spring/raw/sim=spring_ns=20000_seed=42_n_body=4_dim=2_nt=1000_dt=1e-02_accel_data.npy"
-)
+data = np.load("simulations/data.npy")
+accel_data = np.load("simulations/accel_data.npy")
 
 # Hyper params
 # ---------------
@@ -142,7 +146,7 @@ msg_dim = 100
 n_f = data.shape[3]
 n = data.shape[2]
 init_lr = 1e-3
-total_epochs = 30
+total_epochs = 100
 dim = 2
 
 
@@ -154,9 +158,13 @@ y = torch.from_numpy(
     np.concatenate([accel_data[:, i] for i in range(0, data.shape[1], 5)])
 )
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False)
-edge_index = get_edge_index(n, "r2")  # doesnt matter unless string or ball.
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, shuffle=False, random_state=42
+)
 
+edge_index = get_edge_index(n, "r2")  # doesnt matter unless string or ball.
+X_train = X_train[:64]
+y_train = y_train[:64]
 batch = int(64 * (4 / n) ** 2)
 batch_per_epoch = int(1000 * 10 / (batch / 32.0))
 
@@ -166,7 +174,7 @@ trainloader = DataLoader(
         for i in range(len(y_train))
     ],
     batch_size=batch,
-    shuffle=True,
+    shuffle=False,
 )
 
 testloader = DataLoader(
@@ -175,8 +183,9 @@ testloader = DataLoader(
         for i in range(len(y_test))
     ],
     batch_size=1024,
-    shuffle=True,
+    shuffle=False,
 )
+
 
 # Record messages over test dataset here:
 import numpy as onp
@@ -198,6 +207,10 @@ ogn = OGN(
     edge_index=get_edge_index(n, sim),
     aggr=aggr,
 ).to(device)
+
+# Load state dict for consistent testing
+ogn.load_state_dict(torch.load("model_state_dict_colab.pt"))
+
 opt = torch.optim.Adam(ogn.parameters(), lr=init_lr, weight_decay=1e-8)
 sched = OneCycleLR(
     opt,
@@ -223,9 +236,23 @@ for epoch in tqdm(range(1, total_epochs + 1)):
             ginput.x = ginput.x.to(device)
             ginput.y = ginput.y.to(device)
             ginput.edge_index = ginput.edge_index.to(device)
+            # ic(ginput.x, ginput.y)
+            pred = ogn(ginput.x, ginput.edge_index)
+            # ic(pred)
+            # torch.save(pred, "pred_gt.pt")
+            ginput.edge_index = ginput.edge_index.to(device)
             ginput.batch = ginput.batch.to(device)
             if test in ["_l1_", "_kl_"]:
                 loss, reg = new_loss(ogn, ginput, square=False)
+                print(
+                    "reg loss final contribution",
+                    reg / int(ginput.batch[-1] + 1),
+                )
+                print(
+                    "base loss final contribution",
+                    loss / int(ginput.batch[-1] + 1),
+                )
+                print("total loss", (loss + reg) / int(ginput.batch[-1] + 1))
                 ((loss + reg) / int(ginput.batch[-1] + 1)).backward()
             else:
                 loss = ogn.loss(ginput, square=False)
@@ -236,6 +263,9 @@ for epoch in tqdm(range(1, total_epochs + 1)):
             total_loss += loss.item()
             i += 1
             num_items += int(ginput.batch[-1] + 1)
+            break
+        break
+    break
     cur_loss = total_loss / num_items
     print(cur_loss)
     cur_msgs = get_messages(ogn)
@@ -246,6 +276,6 @@ for epoch in tqdm(range(1, total_epochs + 1)):
     ogn.cpu()
     recorded_models.append(ogn.state_dict())
 
-    pkl.dump(messages_over_time, open("messages_over_time.pkl", "wb"))
+    # pkl.dump(messages_over_time, open("messages_over_time_hc.pkl", "wb"))
 
-    pkl.dump(recorded_models, open("models_over_time.pkl", "wb"))
+    # pkl.dump(recorded_models, open("models_over_time_hc.pkl", "wb"))

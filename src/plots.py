@@ -4,14 +4,24 @@ import pickle as pkl
 from scipy.optimize import minimize
 import os
 import imageio
+import pandas as pd
 
-plot_force_components = False
-plot_sparsity = True
+plot_force_components = True
+plot_sparsity = False
 
 
 # Load the df. (replace with the pckled file and take the last df)
-with open("simulations/messages_over_time.pkl", "rb") as f:
+with open("messages_over_time_clb_new_loss.pkl", "rb") as f:
     messages_over_time = pkl.load(f)
+
+# msgs_dir = 'train_runs_very_strong_reg/training_messages/'
+# messages_over_time = []
+# for csv in os.listdir(msgs_dir):
+#     if csv.endswith('.csv'):
+#         messages_over_time.append(pd.read_csv(
+#             os.path.join(msgs_dir, csv)))
+
+# print(len(messages_over_time))
 
 
 def percentile_sum(x):
@@ -83,7 +93,7 @@ def out_linear_transformation_3d(alpha, X):
 
 filenames = []  # List to store filenames of the plots
 
-for idx in range(1, len(messages_over_time)):
+for idx in range(0, len(messages_over_time)):
     df = messages_over_time[idx]
 
     # Fetch the dim of the experiment by checking if z is present in columns.
@@ -199,10 +209,10 @@ for idx in range(1, len(messages_over_time)):
     filenames.append(filename)
 
 # Create the GIF
-with imageio.get_writer("my_animation.gif", mode="I", duration=0.5) as writer:
+with imageio.get_writer("force.gif", mode="I", duration=0.5) as writer:
     for filename in filenames:
         image = imageio.imread(filename)
         writer.append_data(image)
 
-for filename in set(filenames):
-    os.remove(filename)  # Remove the files
+# for filename in set(filenames):
+#     os.remove(filename)  # Remove the files
