@@ -43,27 +43,19 @@ def new_loss(self, g, augment=False, square=False):
         base_loss = torch.sum(
             torch.abs(g.y - self.just_derivative(g, augment=augment))
         )
-        print("base_loss", base_loss)
+        print("base loss", base_loss)
         if test in ["_l1_", "_kl_"]:
-            s1 = g.x[self.edge_index[0]]
-            s2 = g.x[self.edge_index[1]]
+            s1 = g.x[g.edge_index[0]]
+            s2 = g.x[g.edge_index[1]]
+            batch = int(g.batch[-1] + 1)
             if test == "_l1_":
                 m12 = self.message(s1, s2)
                 regularization = 1e-2
                 # Want one loss value per row of g.y:
                 normalized_l05 = torch.sum(torch.abs(m12))
-                batch = int(g.batch[-1] + 1)
-                reg_weight = (regularization * batch * n) / (n * (n - 1))
+                reg_weight = (regularization) / (batch * n * (n - 1))
                 print("summed abs edge msg", normalized_l05)
-                print(
-                    "l1_reg_weight",
-                    (regularization * batch * n) / (n * (n - 1)),
-                )
-                print(
-                    f"{regularization} * {batch} * {n} / {n}({n-1}) = ",
-                    reg_weight,
-                )
-                return (base_loss, reg_weight * normalized_l05)
+                return (base_loss, normalized_l05)
             elif test == "_kl_":
                 regularization = 1
                 # Want one loss value per row of g.y:
@@ -244,16 +236,17 @@ for epoch in tqdm(range(1, total_epochs + 1)):
             ginput.batch = ginput.batch.to(device)
             if test in ["_l1_", "_kl_"]:
                 loss, reg = new_loss(ogn, ginput, square=False)
+                batch = int(ginput.batch[-1] + 1)
                 print(
                     "reg loss final contribution",
-                    reg / int(ginput.batch[-1] + 1),
+                    reg / (batch * n * (n - 1)),
                 )
                 print(
                     "base loss final contribution",
-                    loss / int(ginput.batch[-1] + 1),
-                )
-                print("total loss", (loss + reg) / int(ginput.batch[-1] + 1))
-                ((loss + reg) / int(ginput.batch[-1] + 1)).backward()
+                    loss / (batch * n) ),
+                
+                print("total loss", (loss / (batch * n)) + reg / (batch * n * (n - 1)))
+                ((loss / (batch * n)) + reg / (batch * n * (n - 1))).backward()
             else:
                 loss = ogn.loss(ginput, square=False)
                 (loss / int(ginput.batch[-1] + 1)).backward()

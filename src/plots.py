@@ -11,7 +11,7 @@ plot_sparsity = False
 
 
 # Load the df. (replace with the pckled file and take the last df)
-with open("messages_over_time_clb_new_loss.pkl", "rb") as f:
+with open("messages_over_time_clb_correct_loss.pkl", "rb") as f:
     messages_over_time = pkl.load(f)
 
 # msgs_dir = 'train_runs_very_strong_reg/training_messages/'

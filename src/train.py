@@ -110,7 +110,7 @@ def main(config):
     # val_loader = DataLoader(
     #     val_dataset, batch_size=config["val_batch_size"], shuffle=False
     # )
-
+    
     # --------------------------------------------
     # loss debugging code
     from utils import get_edge_index
@@ -119,8 +119,12 @@ def main(config):
 
     # Manually load a single graph of data
     fname = "sim=spring_ns=7500_seed=0_n_body=4_dim=2_nt=1000_dt=1e-02_data.npy"
-    data = np.load("simulations/data.npy")
-    accel_data = np.load("simulations/accel_data.npy")
+    data = np.load(
+        "simulations/data.npy"
+    )
+    accel_data = np.load(
+        "simulations/accel_data.npy"
+    )
 
     edge_index = get_edge_index(fname)
 
@@ -132,10 +136,8 @@ def main(config):
         np.concatenate([accel_data[:, i] for i in range(0, data.shape[1], 5)])
     )
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, shuffle=False, random_state=42
-    )
-
+    X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False, random_state=42)
+ 
     batch = 64
     X_train = X_train[:64]
     y_train = y_train[:64]
@@ -156,7 +158,7 @@ def main(config):
         batch_size=batch,
         shuffle=False,
     )
-
+    
     # Initialise the model.
     # model = model_factory(config["model"], config["model_params"])
     # Hyper params
@@ -181,10 +183,10 @@ def main(config):
         edge_index=edge_index,
         aggr=aggr,
     ).to(device)
-
+    
     # Load state dict for consistent testing
     model.load_state_dict(torch.load("model_state_dict_colab.pt"))
-
+    
     # Initialise the optimiser.
     total_epochs = config["epochs"]
     lr = config["lr"]
@@ -241,7 +243,7 @@ def main(config):
             break
 
         break
-
+ 
         avg_train_loss = total_train_loss / len(train_loader)
         if config["wandb"]:
             wandb.log({"avg_train_loss": avg_train_loss})
