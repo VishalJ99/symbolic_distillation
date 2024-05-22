@@ -22,10 +22,8 @@ class LossWithL1MessageReg(nn.Module):
         else:
             base_loss = torch.sum(torch.abs(input.y - target))
 
-        print("base loss", base_loss)
         # Divide by the number of nodes in the graph.
         base_loss /= input.y.shape[0]
-        print("base loss final contribution", base_loss)
 
         total_loss = base_loss
 
@@ -37,11 +35,8 @@ class LossWithL1MessageReg(nn.Module):
             messages = model.message(s, r)
             l1_reg = torch.sum(torch.abs(messages))
 
-            print("summed abs edge msg", l1_reg)
-
             # Divide by the number of edges in the graph.
             l1_reg /= input.edge_index.shape[1]
-            print("reg loss final contribution", self.l1_weight * l1_reg)
             total_loss += self.l1_weight * l1_reg
 
         print("total loss", total_loss)

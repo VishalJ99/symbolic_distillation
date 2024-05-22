@@ -12,3 +12,5 @@ simulations/models.py
 *.gif
 *.png
 *.pt
+machine.file*
+*.out
