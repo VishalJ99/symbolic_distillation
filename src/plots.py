@@ -6,22 +6,24 @@ import os
 import imageio
 import pandas as pd
 
-plot_force_components = True
-plot_sparsity = False
+plot_force_components = False
+plot_sparsity = True
 
 
 # Load the df. (replace with the pckled file and take the last df)
-with open("messages_over_time_clb_correct_loss.pkl", "rb") as f:
+with open("/Users/vishaljain/project/messages_over_time_clb_2", "rb") as f:
     messages_over_time = pkl.load(f)
 
-# msgs_dir = 'train_runs_very_strong_reg/training_messages/'
+# msgs_dir = 'train_runs/colab_duplicate_experiment/training_messages/'
 # messages_over_time = []
-# for csv in os.listdir(msgs_dir):
+# csv_files = sorted(os.listdir(msgs_dir), key=lambda x: int(x.split('_')[-1].split('.')[0]))
+# for csv in csv_files:
 #     if csv.endswith('.csv'):
+#         print(csv)
 #         messages_over_time.append(pd.read_csv(
 #             os.path.join(msgs_dir, csv)))
 
-# print(len(messages_over_time))
+print(len(messages_over_time))
 
 
 def percentile_sum(x):

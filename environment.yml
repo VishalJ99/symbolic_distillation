@@ -1,22 +1,30 @@
 name: vj279_project
 channels:
-  - pytorch # is this channel needed?
   - defaults
   - conda-forge
 dependencies:
-  - python=3.10.12
+  - python
   - black
   - flake8
   - pre-commit
   - pytest
-  - jax=0.4.23
-  - jaxlib=0.4.23
-  - matplotlib=3.7.1
-  - matplotlib-inline=0.1.6
-  - matplotlib-venn=0.11.10
-  - numpy=1.23.5
-  - tqdm=4.66.1
-  - celluloid=0.2.0
+  - jax
+  - jaxlib
+  - matplotlib
+  - matplotlib-inline
+  - matplotlib-venn
+  - numpy
+  - tqdm
+  - torch
+  - celluloid
   - pip
   - pip:
-    - torch==2.1.0
+    - icecream
+    - torch_scatter
+    - torch_sparse
+    - torch_geometric
+    - wandb
+    - accelerate
+    - pandas
+    - imageio
+
