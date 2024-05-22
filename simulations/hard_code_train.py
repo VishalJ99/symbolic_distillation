@@ -144,10 +144,10 @@ dim = 2
 
 # Split the data into train and val.
 X = torch.from_numpy(
-    np.concatenate([data[:, i] for i in range(0, data.shape[1], 5)])
+    np.concatenate([data[:, i] for i in range(0, data.shape[1], 1)])
 )
 y = torch.from_numpy(
-    np.concatenate([accel_data[:, i] for i in range(0, data.shape[1], 5)])
+    np.concatenate([accel_data[:, i] for i in range(0, data.shape[1], 1)])
 )
 
 X_train, X_test, y_train, y_test = train_test_split(
@@ -199,7 +199,7 @@ opt = torch.optim.Adam(ogn.parameters(), lr=init_lr, weight_decay=1e-8)
 sched = OneCycleLR(
     opt,
     max_lr=init_lr,
-    steps_per_epoch=batch_per_epoch,  # len(trainloader),
+    steps_per_epoch=len(trainloader),  # len(trainloader),
     epochs=total_epochs,
     final_div_factor=1e5,
 )
@@ -212,27 +212,25 @@ for epoch in tqdm(range(1, total_epochs + 1)):
     total_loss = 0.0
     i = 0
     num_items = 0
-    while i < batch_per_epoch:
-        for ginput in tqdm(trainloader):
-            if i >= batch_per_epoch:
-                break
-            opt.zero_grad()
-            ginput.x = ginput.x.to(device)
-            ginput.y = ginput.y.to(device)
-            ginput.edge_index = ginput.edge_index.to(device)
-            ginput.batch = ginput.batch.to(device)
-            if test in ["_l1_", "_kl_"]:
-                loss, reg = new_loss(ogn, ginput, square=False)
-                (loss + reg).backward()
-            else:
-                loss = ogn.loss(ginput, square=False)
-                (loss / int(ginput.batch[-1] + 1)).backward()
-            opt.step()
-            sched.step()
+    for ginput in tqdm(trainloader):
+        opt.zero_grad()
+        ginput.x = ginput.x.to(device)
+        ginput.y = ginput.y.to(device)
+        ginput.edge_index = ginput.edge_index.to(device)
+        ginput.batch = ginput.batch.to(device)
+        if test in ["_l1_", "_kl_"]:
+            loss, reg = new_loss(ogn, ginput, square=False)
+            (loss + reg).backward()
+        else:
+            loss = ogn.loss(ginput, square=False)
+            (loss / int(ginput.batch[-1] + 1)).backward()
+        opt.step()
+        sched.step()
 
-            total_loss += loss.item()
-            i += 1
-            num_items += int(ginput.batch[-1] + 1)
+        total_loss += loss.item()
+        i += 1
+        num_items += int(ginput.batch[-1] + 1)
+    
     cur_loss = total_loss / num_items
     print(cur_loss)
     cur_msgs = get_messages(ogn)
@@ -244,7 +242,7 @@ for epoch in tqdm(range(1, total_epochs + 1)):
     recorded_models.append(ogn.state_dict())
 
     pkl.dump(
-        messages_over_time, open("messages_over_time_clb_correct_loss.pkl", "wb")
+        messages_over_time, open("../rds/hpc-work/messages_over_time_clb_all_batches_hpc.pkl", "wb")
     )
 
-    pkl.dump(recorded_models, open("models_over_time_clb_correct_loss.pkl", "wb"))
+    pkl.dump(recorded_models, open("../rds/hpc-work/models_over_time_clb_all_batches_hpc.pkl", "wb"))

@@ -39,5 +39,4 @@ class LossWithL1MessageReg(nn.Module):
             l1_reg /= input.edge_index.shape[1]
             total_loss += self.l1_weight * l1_reg
 
-        print("total loss", total_loss)
         return total_loss

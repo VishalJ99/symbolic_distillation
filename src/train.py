@@ -14,7 +14,7 @@ from datasets import ParticleDynamicsDataset
 from utils import (
     make_dir,
     seed_everything,
-    tranforms_factory,
+    transforms_factory,
     model_factory,
     loss_factory,
     get_node_message_info_df,
@@ -67,14 +67,14 @@ def main(config):
     # Initialise transforms if specified in the configuration.
     if "augmentations" in config:
         augmentations = Compose(
-            tranforms_factory(k, v) for k, v in config["augmentations"].items()
+            transforms_factory(k, v) for k, v in config["augmentations"].items()
         )
     else:
         augmentations = None
 
     if "pre_transforms" in config:
         pre_transforms = Compose(
-            tranforms_factory(k, v) for k, v in config["pre_transforms"].items()
+            transforms_factory(k, v) for k, v in config["pre_transforms"].items()
         )
     else:
         pre_transforms = None
