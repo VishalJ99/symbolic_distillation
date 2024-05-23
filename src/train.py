@@ -8,18 +8,17 @@ from torch_geometric.data import DataLoader
 from torch_geometric.transforms import Compose
 from torch.utils.data import Subset
 from torch.optim.lr_scheduler import OneCycleLR
-from datasets import ParticleDynamicsDataset
 from tqdm import tqdm
+import pandas as pd
+from datasets import ParticleDynamicsDataset
 from utils import (
     make_dir,
     seed_everything,
-    tranforms_factory,
+    transforms_factory,
     model_factory,
     loss_factory,
     get_node_message_info_df,
 )
-
-import pandas as pd
 
 
 def main(config):
@@ -28,6 +27,7 @@ def main(config):
 
     # Create the output directory for the run if it does not exist.
     output_dir = config["output_dir"]
+    make_dir(output_dir)
 
     # Create output directory to save model weights during training.
     weights_dir_path = os.path.join(output_dir, "model_weights")
@@ -67,14 +67,14 @@ def main(config):
     # Initialise transforms if specified in the configuration.
     if "augmentations" in config:
         augmentations = Compose(
-            tranforms_factory(k, v) for k, v in config["augmentations"].items()
+            transforms_factory(k, v) for k, v in config["augmentations"].items()
         )
     else:
         augmentations = None
 
     if "pre_transforms" in config:
         pre_transforms = Compose(
-            tranforms_factory(k, v) for k, v in config["pre_transforms"].items()
+            transforms_factory(k, v) for k, v in config["pre_transforms"].items()
         )
     else:
         pre_transforms = None
@@ -108,8 +108,13 @@ def main(config):
         val_dataset, batch_size=config["val_batch_size"], shuffle=False
     )
 
-    # Initialise the model.
+    # Load model.
     model = model_factory(config["model"], config["model_params"])
+
+    # Load state dict if specified in the config.
+    if config["model_state_dict"]:
+        model.load_state_dict(torch.load(config["model_state_dict"]))
+        print(f"[INFO] Loaded model state dict...")
 
     # Initialise the optimiser.
     total_epochs = config["epochs"]
@@ -118,6 +123,7 @@ def main(config):
         model.parameters(), lr=lr, weight_decay=config["weight_decay"]
     )
 
+    # Initialise the learning rate scheduler.
     max_lr = config["scheduler_params"]["max_lr"]
     final_div_factor = config["scheduler_params"]["final_div_factor"]
     sched = OneCycleLR(
@@ -136,24 +142,19 @@ def main(config):
         model, optim, sched, train_loader, val_loader
     )
 
-    # TODO: Remove this for the full training loop.
-    batch_per_epoch = int(1000 * 10 / (config["train_batch_size"] / 32.0))
-
     # Set max validation loss to infinity.
     max_val_loss = float("inf")
 
     # Training loop.
     for epoch in range(1, total_epochs + 1):
         print(f"Epoch {epoch}/{total_epochs}")
-
+        
         # Training phase
         total_train_loss = 0
+        num_train_items = 0
         model.train()
         train_loader_iter = tqdm(train_loader, desc=f"Training Epoch {epoch}")
-        for i, graph in enumerate(train_loader_iter):
-            if i >= batch_per_epoch:
-                break
-
+        for graph in train_loader_iter:
             optim.zero_grad()
             pred = model(graph)
             loss = loss_fn(graph, pred, model)
@@ -163,25 +164,31 @@ def main(config):
             sched.step()
 
             total_train_loss += loss.item()
+            num_train_items += 1
 
-            train_loader_iter.set_postfix(avg_loss=total_train_loss / (i + 1))
+            avg_train_loss = total_train_loss / num_train_items
 
-        avg_train_loss = total_train_loss / len(train_loader)
+            train_loader_iter.set_postfix(avg_train_loss=avg_train_loss)
+ 
         if config["wandb"]:
             wandb.log({"avg_train_loss": avg_train_loss})
 
         # Validation phase
         total_val_loss = 0
+        num_val_items = 0
         model.eval()
         with torch.no_grad():
             val_loader_iter = tqdm(val_loader, desc=f"Validation Epoch {epoch}")
             for graph in val_loader_iter:
                 pred = model(graph)
+                
                 val_loss = loss_fn(graph, pred, model).item()
+                
                 total_val_loss += val_loss
-                val_loader_iter.set_postfix(loss=val_loss)
+                num_val_items += 1
+                avg_val_loss = total_val_loss / num_val_items
+                val_loader_iter.set_postfix(avg_val_loss=avg_val_loss)
 
-            avg_val_loss = total_val_loss / len(val_loader)
             if config["wandb"]:
                 wandb.log({"avg_val_loss": avg_val_loss})
 
@@ -196,7 +203,7 @@ def main(config):
             )
 
             # Update the max validation loss.
-            max_val_loss = total_val_loss
+            max_val_loss = avg_val_loss
 
         # Save the model weights every n epochs.
         if (epoch + 1) % config["save_every_n_epochs"] == 0:
@@ -209,16 +216,18 @@ def main(config):
         if config["save_messages"]:
             # Save node features and msgs for each edge in the val set as a df.
             pbar = tqdm(val_loader, desc="Saving node messages")
+            msgs_recorded = 0
             df_list = []
-
             for graph in pbar:
-                df = get_node_message_info_df(
-                    graph, model, dim=(graph.x.shape[1] - 2) // 2
-                )
-                df_list.append(df)
+                # Only record 10k messages per epoch to avoid large file sizes.
+                while msgs_recorded < 10000:
+                    df = get_node_message_info_df(
+                        graph, model, dim=(graph.x.shape[1] - 2) // 2
+                    )
+                    msgs_recorded += len(df)
+                    df_list.append(df)
 
             df = pd.concat(df_list)
-
             node_message_save_path = os.path.join(
                 messages_dir_path, f"node_messages_epoch_{epoch}.csv"
             )

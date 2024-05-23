@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import Batch
 from torch_geometric.nn import MessagePassing
+from icecream import ic
 
 
 class LossWithL1MessageReg(nn.Module):
@@ -36,7 +37,6 @@ class LossWithL1MessageReg(nn.Module):
 
             # Divide by the number of edges in the graph.
             l1_reg /= input.edge_index.shape[1]
-
             total_loss += self.l1_weight * l1_reg
 
         return total_loss

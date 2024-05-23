@@ -99,16 +99,16 @@ def make_dir(dir_path):
         sys.exit(1)
 
 
-def tranforms_factory(transform_key, transform_params):
+def transforms_factory(transform_key, transform_params):
     """
     Takes in a dictionary with keys as the transform names and values as the
     transform parameters and returns a transforms.Compose object.
     """
-    tranforms_dict = {
+    transforms_dict = {
         "random_translate": RandomTranslate,
     }
 
-    transform = tranforms_dict[transform_key](**transform_params)
+    transform = transforms_dict[transform_key](**transform_params)
     return transform
 
 

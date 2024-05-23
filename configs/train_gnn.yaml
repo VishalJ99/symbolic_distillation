@@ -2,16 +2,17 @@
 
 # General settings
 seed: 42                          # Random seed for reproducibility
-output_dir: './train_runs'            # Directory to save outputs (models, logs, etc.)
+output_dir: '/home/vj279/rds/hpc-work/train_runs/colab_duplicate_experiment'            # Directory to save outputs (models, logs, etc.)
 wandb: true                       # Enable Weights & Biases logging
 wandb_project: 'mphil_project'  # Weights & Biases project name
 save_messages: true               # Save messages to the output directory
 
 # Data settings
-data_dir: 'data/4_body_spring_2d'                # Root directory for the dataset
-quick_test: true                 # If true, use smaller subsets of the dataset for quick testing
+data_dir: '/home/vj279/rds/hpc-work/data/colab_spring_2d_4_body'                # Root directory for the dataset
+quick_test: false                 # If true, use smaller subsets of the dataset for quick testing
 
 # Model settings
+model_state_dict: null            # Path to a model state dict to load
 model: gnn                # Model name (should match a model in model_factory)
 model_params:                     # Parameters for the model initialization
   n_f: 6                         # Example model parameter (number of features)
@@ -21,7 +22,8 @@ model_params:                     # Parameters for the model initialization
   aggr: 'add'                     # Example model parameter (aggregation method)
 
 # Training settings
-epochs: 10                       # Number of epochs to train
+epochs: 100                      # Number of epochs to train
+batch_per_epoch: 5000             # Number of batches per epoch
 train_batch_size: 64              # Training batch size
 val_batch_size: 1024                # Validation batch size
 lr: 0.001                         # Learning rate
@@ -37,7 +39,7 @@ scheduler_params:                 # Parameters for the learning rate scheduler
 loss: 'loss+l1reg'      # Loss function name (should match a loss in loss_factory)
 loss_params:                      # Parameters for the loss function initialization
   square: false                    # Example loss parameter (use squared error)
-  l1_weight: 1.0e-2                 # Example loss parameter (weight for L1 regularization)
+  l1_weight: 1.0e-2               # Example loss parameter (weight for L1 regularization)
 
 # # Transforms settings
 # pre_transforms:                   # Pre-transforms to apply to the dataset
