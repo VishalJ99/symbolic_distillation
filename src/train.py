@@ -148,13 +148,17 @@ def main(config):
 
     # Training loop.
     for epoch in range(1, total_epochs + 1):
-        print(f"Epoch {epoch}/{total_epochs}")
+        print(f"\nEpoch {epoch}/{total_epochs}")
 
         # Training phase
         total_train_loss = 0
         num_train_items = 0
         model.train()
-        train_loader_iter = tqdm(train_loader, desc=f"Training Epoch {epoch}")
+        train_loader_iter = (
+            tqdm(train_loader, desc=f"Training Epoch {epoch}")
+            if config["tqdm"]
+            else train_loader
+        )
         for graph in train_loader_iter:
             optim.zero_grad()
             pred = model(graph)
@@ -169,7 +173,10 @@ def main(config):
 
             avg_train_loss = total_train_loss / num_train_items
 
-            train_loader_iter.set_postfix(avg_train_loss=avg_train_loss)
+            if config["tqdm"]:
+                train_loader_iter.set_postfix(avg_train_loss=avg_train_loss)
+
+        print(f"Average training loss for Epoch: {avg_train_loss}")
 
         if config["wandb"]:
             wandb.log({"avg_train_loss": avg_train_loss})
@@ -179,7 +186,11 @@ def main(config):
         num_val_items = 0
         model.eval()
         with torch.no_grad():
-            val_loader_iter = tqdm(val_loader, desc=f"Validation Epoch {epoch}")
+            val_loader_iter = (
+                tqdm(val_loader, desc=f"Validation Epoch {epoch}")
+                if config["tqdm"]
+                else val_loader
+            )
             for graph in val_loader_iter:
                 pred = model(graph)
 
@@ -188,7 +199,10 @@ def main(config):
                 total_val_loss += val_loss
                 num_val_items += 1
                 avg_val_loss = total_val_loss / num_val_items
-                val_loader_iter.set_postfix(avg_val_loss=avg_val_loss)
+                if config["tqdm"]:
+                    val_loader_iter.set_postfix(avg_val_loss=avg_val_loss)
+
+            print(f"Average validation loss for Epoch: {avg_val_loss}")
 
             if config["wandb"]:
                 wandb.log({"avg_val_loss": avg_val_loss})
@@ -216,7 +230,11 @@ def main(config):
 
         if config["save_messages"]:
             # Save node features and msgs for each edge in the val set as a df.
-            pbar = tqdm(val_loader, desc="Saving node messages")
+            pbar = (
+                tqdm(val_loader, desc="Saving node messages")
+                if config["tqdm"]
+                else val_loader
+            )
             msgs_recorded = 0
             df_list = []
             for graph in pbar:
@@ -234,8 +252,6 @@ def main(config):
             )
 
             df.to_csv(node_message_save_path, index=False)
-
-            pbar.close()
 
 
 if __name__ == "__main__":
