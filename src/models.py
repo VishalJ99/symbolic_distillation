@@ -1,14 +1,13 @@
 # TODO: generalise edge and node model architecture / abstract it to config
 # Add typing hints
 import torch
-from torch.nn import Sequential as Seq, Linear as Lin, ReLU
 from torch_geometric.nn import MessagePassing
 from torch.nn import Sequential, Linear, ReLU
 
 
 class GNN(MessagePassing):
     def __init__(self, n_f, msg_dim, ndim, hidden=300, aggr="add"):
-        super(GNN, self).__init__(aggr=aggr)  # "Add" aggregation.
+        super(GNN, self).__init__(aggr=aggr)
         self.edge_model = Sequential(
             Linear(2 * n_f, hidden),
             ReLU(),
@@ -45,101 +44,20 @@ class GNN(MessagePassing):
         return x_new
 
 
-# def make_packer(n, n_f):
-#     def pack(x):
-#         return x.reshape(-1, n_f * n)
-
-#     return pack
-
-
-# def make_unpacker(n, n_f):
-#     def unpack(x):
-#         return x.reshape(-1, n, n_f)
-
-#     return unpack
-
-
-class GN(MessagePassing):
+class VarGNN(GNN):
     def __init__(self, n_f, msg_dim, ndim, hidden=300, aggr="add"):
-        super(GN, self).__init__(aggr=aggr)  # "Add" aggregation.
-        self.msg_fnc = Seq(
-            Lin(2 * n_f, hidden),
-            ReLU(),
-            Lin(hidden, hidden),
-            ReLU(),
-            Lin(hidden, hidden),
-            ReLU(),
-            ##(Can turn on or off this layer:)
-            #             Lin(hidden, hidden),
-            #             ReLU(),
-            Lin(hidden, msg_dim),
-        )
-
-        self.node_fnc = Seq(
-            Lin(msg_dim + n_f, hidden),
-            ReLU(),
-            Lin(hidden, hidden),
-            ReLU(),
-            Lin(hidden, hidden),
-            ReLU(),
-            #             Lin(hidden, hidden),
-            #             ReLU(),
-            Lin(hidden, ndim),
-        )
-
-    # [docs]
-    def forward(self, x, edge_index):
-        # x is [n, n_f]
-        x = x
-        return self.propagate(edge_index, size=(x.size(0), x.size(0)), x=x)
+        super(VarGNN, self).__init__(n_f, msg_dim, ndim, hidden, aggr)
+        assert msg_dim % 2 == 0, f"msg_dim must be even. Currently: {msg_dim}"
 
     def message(self, x_i, x_j):
-        # x_i has shape [n_e, n_f]; x_j has shape [n_e, n_f]
-        tmp = torch.cat([x_i, x_j], dim=1)  # tmp has shape [E, 2 * in_channels]
-        return self.msg_fnc(tmp)
+        x = torch.cat([x_i, x_j], dim=1)
+        param_msg = self.edge_model(x)
 
-    def update(self, aggr_out, x=None):
-        # aggr_out has shape [n, msg_dim]
+        # Unpack message parameters.
+        mu = param_msg[:, : self.msg_dim // 2]
+        logvar = param_msg[:, self.msg_dim // 2 :]
+        std = torch.exp(0.5 * logvar)
 
-        tmp = torch.cat([x, aggr_out], dim=1)
-        return self.node_fnc(tmp)  # [n, nupdate]
-
-
-class OGN(GN):
-    def __init__(
-        self, n_f, msg_dim, ndim, dt, edge_index, aggr="add", hidden=300, nt=1
-    ):
-        super(OGN, self).__init__(n_f, msg_dim, ndim, hidden=hidden, aggr=aggr)
-        self.dt = dt
-        self.nt = nt
-        self.edge_index = edge_index
-        self.ndim = ndim
-
-    def just_derivative(self, g, augment=False, augmentation=3):
-        # x is [n, n_f]
-        x = g.x
-        ndim = self.ndim
-        if augment:
-            augmentation = torch.randn(1, ndim) * augmentation
-            augmentation = augmentation.repeat(len(x), 1).to(x.device)
-            x = x.index_add(1, torch.arange(ndim).to(x.device), augmentation)
-
-        edge_index = g.edge_index
-
-        return self.propagate(edge_index, size=(x.size(0), x.size(0)), x=x)
-
-    def loss(self, g, augment=True, square=False, augmentation=3, **kwargs):
-        if square:
-            return torch.sum(
-                (
-                    g.y
-                    - self.just_derivative(
-                        g, augment=augment, augmentation=augmentation
-                    )
-                )
-                ** 2
-            )
-        else:
-            return torch.sum(
-                torch.abs(g.y - self.just_derivative(g, augment=augment))
-            )
+        # Sample message.
+        msg = std * torch.randn(mu.shape) + mu
+        return msg
