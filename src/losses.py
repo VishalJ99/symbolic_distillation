@@ -70,7 +70,7 @@ class MAELossWithKLMessageReg(nn.Module):
             messages = model.message(s, r)
             mu = messages[:, : model.msg_dim // 2]
             logvar = messages[:, model.msg_dim // 2 :]
-            kl_reg = torch.sum(-0.5 * (1 + logvar - mu**2 - logvar.exp()))
+            kl_reg = torch.sum(0.5 * (mu**2 + logvar.exp() - logvar - 1))
 
             # Divide by the number of edges in the graph.
             kl_reg /= input.edge_index.shape[1]
