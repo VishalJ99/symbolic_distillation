@@ -4,8 +4,8 @@ import random
 import torch
 from sklearn.model_selection import train_test_split
 import sys
-from models import GNN
-from losses import LossWithL1MessageReg
+from models import GNN, VarGNN
+from losses import MAELossWithL1MessageReg, MAELossWithKLMessageReg
 from transforms import RandomTranslate
 from torch_geometric.data import Data
 from torch_geometric.nn import MessagePassing
@@ -118,7 +118,8 @@ def loss_factory(loss, loss_params):
     loss parameters and returns a loss function.
     """
     loss_dict = {
-        "loss+l1reg": LossWithL1MessageReg,
+        "loss+l1reg": MAELossWithL1MessageReg,
+        "loss+klreg": MAELossWithKLMessageReg,
     }
 
     loss_fn = loss_dict[loss](**loss_params)
@@ -132,6 +133,7 @@ def model_factory(model, model_params):
     """
     model_dict = {
         "gnn": GNN,
+        "vargnn": VarGNN,
     }
     model = model_dict[model](**model_params)
     return model
