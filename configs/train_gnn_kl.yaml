@@ -2,28 +2,27 @@
 
 # General settings
 seed: 42                          # Random seed for reproducibility
-output_dir: '/home/vj279/rds/hpc-work/train_runs/colab_duplicate_experiment'            # Directory to save outputs (models, logs, etc.)
+output_dir: 'train_runs/kl_vj_experiment'            # Directory to save outputs (models, logs, etc.)
 wandb: true                       # Enable Weights & Biases logging
 wandb_project: 'mphil_project'  # Weights & Biases project name
 save_messages: true               # Save messages to the output directory
 
 # Data settings
-data_dir: '/home/vj279/rds/hpc-work/data/colab_spring_2d_4_body'                # Root directory for the dataset
+data_dir: 'data/colab_spring_2d_4_body'                # Root directory for the dataset
 quick_test: false                 # If true, use smaller subsets of the dataset for quick testing
 
 # Model settings
 model_state_dict: null            # Path to a model state dict to load
-model: gnn                # Model name (should match a model in model_factory)
+model: vargnn                # Model name (should match a model in model_factory)
 model_params:                     # Parameters for the model initialization
   n_f: 6                         # Example model parameter (number of features)
-  msg_dim: 200                     # Example model parameter (message dimension)
+  msg_dim: 100                     # Example model parameter (message dimension)
   ndim: 2                        # Example model parameter (node dimension)
   hidden: 300                     # Example model parameter (hidden layer size)
   aggr: 'add'                     # Example model parameter (aggregation method)
 
 # Training settings
 epochs: 100                      # Number of epochs to train
-batch_per_epoch: 5000             # Number of batches per epoch
 train_batch_size: 64              # Training batch size
 val_batch_size: 1024                # Validation batch size
 lr: 0.001                         # Learning rate
