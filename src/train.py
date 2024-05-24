@@ -74,7 +74,8 @@ def main(config):
 
     if "pre_transforms" in config:
         pre_transforms = Compose(
-            transforms_factory(k, v) for k, v in config["pre_transforms"].items()
+            transforms_factory(k, v)
+            for k, v in config["pre_transforms"].items()
         )
     else:
         pre_transforms = None
@@ -114,7 +115,7 @@ def main(config):
     # Load state dict if specified in the config.
     if config["model_state_dict"]:
         model.load_state_dict(torch.load(config["model_state_dict"]))
-        print(f"[INFO] Loaded model state dict...")
+        print("[INFO] Loaded model state dict...")
 
     # Initialise the optimiser.
     total_epochs = config["epochs"]
@@ -148,7 +149,7 @@ def main(config):
     # Training loop.
     for epoch in range(1, total_epochs + 1):
         print(f"Epoch {epoch}/{total_epochs}")
-        
+
         # Training phase
         total_train_loss = 0
         num_train_items = 0
@@ -159,7 +160,7 @@ def main(config):
             pred = model(graph)
             loss = loss_fn(graph, pred, model)
 
-            loss.backward()
+            accelerator.backward(loss)
             optim.step()
             sched.step()
 
@@ -169,7 +170,7 @@ def main(config):
             avg_train_loss = total_train_loss / num_train_items
 
             train_loader_iter.set_postfix(avg_train_loss=avg_train_loss)
- 
+
         if config["wandb"]:
             wandb.log({"avg_train_loss": avg_train_loss})
 
@@ -181,9 +182,9 @@ def main(config):
             val_loader_iter = tqdm(val_loader, desc=f"Validation Epoch {epoch}")
             for graph in val_loader_iter:
                 pred = model(graph)
-                
+
                 val_loss = loss_fn(graph, pred, model).item()
-                
+
                 total_val_loss += val_loss
                 num_val_items += 1
                 avg_val_loss = total_val_loss / num_val_items
