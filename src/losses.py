@@ -33,7 +33,7 @@ class MAELossWithL1MessageReg(nn.Module):
             l1_reg = torch.sum(torch.abs(messages))
 
             # Divide by the number of edges in the graph.
-            l1_reg /= input.edge_index.shape[1]
+            l1_reg /= messages.shape[0]
 
             # Update the total loss.
             total_loss += self.reg_weight * l1_reg
@@ -73,7 +73,7 @@ class MAELossWithKLMessageReg(nn.Module):
             kl_reg = torch.sum(0.5 * (mu**2 + logvar.exp() - logvar - 1))
 
             # Divide by the number of edges in the graph.
-            kl_reg /= input.edge_index.shape[1]
+            kl_reg /= messages.shape[0]
 
             # Update the loss.
             total_loss += self.reg_weight * kl_reg
