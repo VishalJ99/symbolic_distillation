@@ -43,8 +43,8 @@ def new_loss(self, g, augment=True, square=False):
             torch.abs(g.y - self.just_derivative(g, augment=augment))
         )
         if test in ["_l1_", "_kl_"]:
-            s1 = g.x[self.edge_index[0]]
-            s2 = g.x[self.edge_index[1]]
+            s1 = g.x[g.edge_index[0]]
+            s2 = g.x[g.edge_index[1]]
             if test == "_l1_":
                 m12 = self.message(s1, s2)
                 regularization = 1e-2
@@ -64,7 +64,7 @@ def new_loss(self, g, augment=True, square=False):
                 mu = raw_msg[:, 0::2]
                 logvar = raw_msg[:, 1::2]
                 full_kl = torch.sum(torch.exp(logvar) + mu**2 - logvar) / 2.0
-                return base_loss, regularization * batch * full_kl / n**2 * n
+                return base_loss, regularization * batch * full_kl / tmp.shape[0] * n
         return base_loss
 
 
@@ -248,6 +248,6 @@ for epoch in range(1, total_epochs + 1):
     ogn.cpu()
     recorded_models.append(ogn.state_dict())
 
-    pkl.dump(messages_over_time, open("../rds/hpc-work/kl_messages_over_time_sampled.pkl", "wb"))
+    pkl.dump(messages_over_time, open("../rds/hpc-work/kl_messages_over_time_sampled_all_edges.pkl", "wb"))
 
-    pkl.dump(recorded_models, open("../rds/hpc-work/kl_models_over_time_sampled.pkl", "wb"))
+    pkl.dump(recorded_models, open("../rds/hpc-work/kl_models_over_time_sampled_all_edges.pkl", "wb"))
