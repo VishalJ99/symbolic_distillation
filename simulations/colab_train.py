@@ -248,6 +248,6 @@ for epoch in range(1, total_epochs + 1):
     ogn.cpu()
     recorded_models.append(ogn.state_dict())
 
-    pkl.dump(messages_over_time, open("../rds/hpc-work/kl_messages_over_time.pkl", "wb"))
+    pkl.dump(messages_over_time, open("../rds/hpc-work/kl_messages_over_time_sampled.pkl", "wb"))
 
-    pkl.dump(recorded_models, open("../rds/hpc-work/kl_models_over_time.pkl", "wb"))
+    pkl.dump(recorded_models, open("../rds/hpc-work/kl_models_over_time_sampled.pkl", "wb"))
