@@ -52,8 +52,8 @@ CONDA_ENV="vj279_project"
 application="python"
 
 #! Run options for the application:
-# options="simulations/hard_code_train.py"
-options="src/train.py configs/train_gnn.yaml"
+# options="simulations/colab_train.py"
+options="src/train.py configs/train_gnn_kl.yaml"
 #! Work directory (i.e. where the job will run):
 workdir="$SLURM_SUBMIT_DIR"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
 # in which sbatch is run.

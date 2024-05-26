@@ -135,7 +135,7 @@ msg_dim = 100
 n_f = data.shape[3]
 n = data.shape[2]
 init_lr = 1e-3
-total_epochs = 30
+total_epochs = 100
 dim = 2
 
 
@@ -215,7 +215,7 @@ sched = OneCycleLR(
 recorded_models = []
 messages_over_time = []
 print("using device ", device)
-for epoch in tqdm(range(1, total_epochs + 1)):
+for epoch in range(1, total_epochs + 1):
     ogn.to(device)
     total_loss = 0.0
     i = 0
@@ -248,6 +248,6 @@ for epoch in tqdm(range(1, total_epochs + 1)):
     ogn.cpu()
     recorded_models.append(ogn.state_dict())
 
-    pkl.dump(messages_over_time, open("kl_messages_over_time.pkl", "wb"))
+    pkl.dump(messages_over_time, open("../rds/hpc-work/kl_messages_over_time.pkl", "wb"))
 
-    pkl.dump(recorded_models, open("kl_models_over_time.pkl", "wb"))
+    pkl.dump(recorded_models, open("../rds/hpc-work/kl_models_over_time.pkl", "wb"))
