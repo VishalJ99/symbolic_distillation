@@ -79,7 +79,7 @@ def get_messages(ogn):
             raw_msg = ogn.msg_fnc(tmp)
             mu = raw_msg[:, 0::2]
             logvar = raw_msg[:, 1::2]
-            m12 = mu
+            m12 = torch.exp(logvar / 2) * torch.randn_like(mu) + mu
         else:
             m12 = ogn.msg_fnc(tmp)
 
