@@ -4,7 +4,7 @@ from torch.functional import F
 from torch.optim import Adam
 from torch_geometric.nn import MetaLayer, MessagePassing
 from sklearn.model_selection import train_test_split
-from models import OGN
+from models import OGN, varOGN
 import numpy as np
 from torch_geometric.data import Data, DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau, OneCycleLR
@@ -79,7 +79,6 @@ def get_messages(ogn):
             raw_msg = ogn.msg_fnc(tmp)
             mu = raw_msg[:, 0::2]
             logvar = raw_msg[:, 1::2]
-
             m12 = mu
         else:
             m12 = ogn.msg_fnc(tmp)
@@ -123,12 +122,8 @@ def get_messages(ogn):
 
 
 # Load the data - change this to data of the right shape.
-data = np.load(
-    "simulations/data.npy"
-)
-accel_data = np.load(
-    "simulations/accel_data.npy"
-)
+data = np.load("simulations/data.npy")
+accel_data = np.load("simulations/accel_data.npy")
 
 # Hyper params
 # ---------------
@@ -146,10 +141,10 @@ dim = 2
 
 # Split the data into train and val.
 X = torch.from_numpy(
-    np.concatenate([data[:, i] for i in range(0, data.shape[1], 5)])
+    np.concatenate([data[:, i] for i in range(0, data.shape[1], 1)])
 )
 y = torch.from_numpy(
-    np.concatenate([accel_data[:, i] for i in range(0, data.shape[1], 5)])
+    np.concatenate([accel_data[:, i] for i in range(0, data.shape[1], 1)])
 )
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False)
@@ -187,20 +182,32 @@ newtestloader = DataLoader(
     shuffle=False,
 )
 
-ogn = OGN(
-    n_f,
-    msg_dim,
-    dim,
-    dt=0.1,
-    hidden=hidden,
-    edge_index=get_edge_index(n, sim),
-    aggr=aggr,
-).to(device)
+if test == "_kl_":
+    ogn = varOGN(
+        n_f,
+        msg_dim,
+        dim,
+        dt=0.1,
+        hidden=hidden,
+        edge_index=get_edge_index(n, sim),
+        aggr=aggr,
+    ).to(device)
+else:
+    ogn = OGN(
+        n_f,
+        msg_dim,
+        dim,
+        dt=0.1,
+        hidden=hidden,
+        edge_index=get_edge_index(n, sim),
+        aggr=aggr,
+    ).to(device)
+
 opt = torch.optim.Adam(ogn.parameters(), lr=init_lr, weight_decay=1e-8)
 sched = OneCycleLR(
     opt,
     max_lr=init_lr,
-    steps_per_epoch=batch_per_epoch,  # len(trainloader),
+    steps_per_epoch=len(trainloader),  # len(trainloader),
     epochs=total_epochs,
     final_div_factor=1e5,
 )
@@ -213,27 +220,24 @@ for epoch in tqdm(range(1, total_epochs + 1)):
     total_loss = 0.0
     i = 0
     num_items = 0
-    while i < batch_per_epoch:
-        for ginput in tqdm(trainloader):
-            if i >= batch_per_epoch:
-                break
-            opt.zero_grad()
-            ginput.x = ginput.x.to(device)
-            ginput.y = ginput.y.to(device)
-            ginput.edge_index = ginput.edge_index.to(device)
-            ginput.batch = ginput.batch.to(device)
-            if test in ["_l1_", "_kl_"]:
-                loss, reg = new_loss(ogn, ginput, square=False)
-                ((loss + reg) / int(ginput.batch[-1] + 1)).backward()
-            else:
-                loss = ogn.loss(ginput, square=False)
-                (loss / int(ginput.batch[-1] + 1)).backward()
-            opt.step()
-            sched.step()
+    for ginput in tqdm(trainloader):
+        opt.zero_grad()
+        ginput.x = ginput.x.to(device)
+        ginput.y = ginput.y.to(device)
+        ginput.edge_index = ginput.edge_index.to(device)
+        ginput.batch = ginput.batch.to(device)
+        if test in ["_l1_", "_kl_"]:
+            loss, reg = new_loss(ogn, ginput, square=False)
+            ((loss + reg) / int(ginput.batch[-1] + 1)).backward()
+        else:
+            loss = ogn.loss(ginput, square=False)
+            (loss / int(ginput.batch[-1] + 1)).backward()
+        opt.step()
+        sched.step()
 
-            total_loss += loss.item()
-            i += 1
-            num_items += int(ginput.batch[-1] + 1)
+        total_loss += loss.item()
+        i += 1
+        num_items += int(ginput.batch[-1] + 1)
     cur_loss = total_loss / num_items
     print(cur_loss)
     cur_msgs = get_messages(ogn)
