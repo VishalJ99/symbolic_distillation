@@ -25,6 +25,7 @@ class MAELossWithL1MessageReg(nn.Module):
         total_loss = base_loss
 
         if self.reg_weight:
+            print('still called...')
             # Compute summed L1 norm of all the messages.
             s = input.x[input.edge_index[0]]  # sending / source nodes
             r = input.x[input.edge_index[1]]  # recieving / target nodes

@@ -11,17 +11,17 @@ plot_sparsity = True
 
 
 # Load the df. (replace with the pckled file and take the last df)
-with open("/Users/vishaljain/project/messages_over_time_clb_2", "rb") as f:
-    messages_over_time = pkl.load(f)
+# with open("sampled_kl_messages_over_time_batch_per_epoch_5k.pkl", "rb") as f:
+#     messages_over_time = pkl.load(f)
 
-# msgs_dir = 'train_runs/colab_duplicate_experiment/training_messages/'
-# messages_over_time = []
-# csv_files = sorted(os.listdir(msgs_dir), key=lambda x: int(x.split('_')[-1].split('.')[0]))
-# for csv in csv_files:
-#     if csv.endswith('.csv'):
-#         print(csv)
-#         messages_over_time.append(pd.read_csv(
-#             os.path.join(msgs_dir, csv)))
+msgs_dir = '../rds/hpc-work/train_runs/kl_vj_experiment/training_messages/'
+messages_over_time = []
+csv_files = sorted(os.listdir(msgs_dir), key=lambda x: int(x.split('_')[-1].split('.')[0]))
+for csv in csv_files:
+    if csv.endswith('.csv'):
+        print(csv)
+        messages_over_time.append(pd.read_csv(
+            os.path.join(msgs_dir, csv)))
 
 print(len(messages_over_time))
 
@@ -129,7 +129,10 @@ for idx in range(0, len(messages_over_time)):
             cmap="gray_r",
             edgecolors="k",
         )
-
+        # Write std under the plot.
+        for i, std in enumerate(msg_importance[np.argsort(msg_importance)[::-1][:15]]):
+            ax.text(i+0.5, -0.5, "%.2f" % std, ha="center", va="center")
+            
         plt.axis("off")
         plt.grid(True)
         ax.set_aspect("equal")

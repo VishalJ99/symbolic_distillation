@@ -9,7 +9,7 @@
 #!#############################################################
 
 #! sbatch directives begin here ###############################
-#SBATCH --job-name=test_wandb_no_throw_error               
+#SBATCH --job-name=colab_all_edges_a4bcfc2              
 #SBATCH --account=MPHIL-DIS-SL2-GPU                # Account to submit to
 #SBATCH --partition=ampere                         # Partition to submit to
 #SBATCH --nodes=1                                  # Number of nodes
@@ -17,7 +17,7 @@
 #SBATCH --cpus-per-task=1                          # Number of CPU cores per task
 #SBATCH --gres=gpu:1                               # Number of GPUs (per node)
 #SBATCH --mem=10G                                  # Memory (per node)
-#SBATCH --time=0-10:00                             # Time (DD-HH:MM)
+#SBATCH --time=0-00:05                             # Time (DD-HH:MM)
 #SBATCH --mail-type=NONE                           # Adjust if you want email notifications
 #SBATCH --output=logs/job-output-%j.out
 
@@ -53,7 +53,7 @@ application="python"
 
 #! Run options for the application:
 # options="simulations/colab_train.py"
-options="src/train.py configs/train_gnn_kl.yaml"
+options="src/train.py configs/train_gnn_standard.yaml"
 #! Work directory (i.e. where the job will run):
 workdir="$SLURM_SUBMIT_DIR"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
 # in which sbatch is run.
