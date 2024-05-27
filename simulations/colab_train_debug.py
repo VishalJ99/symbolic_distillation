@@ -13,6 +13,7 @@ import pandas as pd
 import pickle as pkl
 from copy import deepcopy as copy
 from accelerate import Accelerator
+from icecream import ic
 
 accelerate = Accelerator()
 device = accelerate.device
@@ -42,6 +43,8 @@ def new_loss(self, g, augment=True, square=False):
         base_loss = torch.sum(
             torch.abs(g.y - self.just_derivative(g, augment=augment))
         )
+        print("base loss", base_loss)
+        batch = int(g.batch[-1] + 1)
         if test in ["_l1_", "_kl_"]:
             s1 = g.x[g.edge_index[0]]
             s2 = g.x[g.edge_index[1]]
@@ -63,8 +66,9 @@ def new_loss(self, g, augment=True, square=False):
                 raw_msg = self.msg_fnc(tmp)
                 mu = raw_msg[:, 0::2]
                 logvar = raw_msg[:, 1::2]
-                full_kl = torch.sum(torch.exp(logvar) + mu**2 - logvar) / 2.0
-                return base_loss, regularization * batch * full_kl / tmp.shape[0] * n
+                full_kl = torch.sum(torch.exp(logvar) + mu**2 - logvar - 1) / 2.0
+                print("kl loss", full_kl)
+                return base_loss / batch, regularization * full_kl / tmp.shape[0] * n
         return base_loss
 
 
@@ -151,7 +155,13 @@ y = torch.from_numpy(
     np.concatenate([accel_data[:, i] for i in range(0, data.shape[1], 5)])
 )
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False)
+X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False, random_state=42)
+
+X_train = X_train[:64]
+y_train = y_train[:64]
+X_test = X_test[:64]
+y_test = y_test[:64]
+
 edge_index = get_edge_index(n, "r2")  # doesnt matter unless string or ball.
 
 batch = int(64 * (4 / n) ** 2)
@@ -163,7 +173,7 @@ trainloader = DataLoader(
         for i in range(len(y_train))
     ],
     batch_size=batch,
-    shuffle=True,
+    shuffle=False,
 )
 
 testloader = DataLoader(
@@ -207,6 +217,9 @@ else:
         aggr=aggr,
     ).to(device)
 
+# Load initial starter weights
+ogn.load_state_dict(torch.load("starter_kl_colab_model.pt"))
+
 opt = torch.optim.Adam(ogn.parameters(), lr=init_lr, weight_decay=1e-8)
 sched = OneCycleLR(
     opt,
@@ -235,7 +248,10 @@ for epoch in tqdm(range(1, total_epochs + 1)):
             ginput.batch = ginput.batch.to(device)
             if test in ["_l1_", "_kl_"]:
                 loss, reg = new_loss(ogn, ginput, square=False)
-                ((loss + reg) / int(ginput.batch[-1] + 1)).backward()
+                print("base loss contribution", loss)
+                print("kl contribution", reg)
+                print("total loss", loss + reg)
+                (loss + reg).backward()
             else:
                 loss = ogn.loss(ginput, square=False)
                 (loss / int(ginput.batch[-1] + 1)).backward()
@@ -245,6 +261,9 @@ for epoch in tqdm(range(1, total_epochs + 1)):
             total_loss += loss.item()
             i += 1
             num_items += int(ginput.batch[-1] + 1)
+            break
+        break
+    break
     cur_loss = total_loss / num_items
     print(cur_loss)
     cur_msgs = get_messages(ogn)

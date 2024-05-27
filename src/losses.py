@@ -25,7 +25,6 @@ class MAELossWithL1MessageReg(nn.Module):
         total_loss = base_loss
 
         if self.reg_weight:
-            print('still called...')
             # Compute summed L1 norm of all the messages.
             s = input.x[input.edge_index[0]]  # sending / source nodes
             r = input.x[input.edge_index[1]]  # recieving / target nodes
@@ -56,9 +55,10 @@ class MAELossWithKLMessageReg(nn.Module):
     ):
         # Calculate the MAE.
         base_loss = torch.sum(torch.abs(input.y - target))
-
+        print('base_loss:', base_loss)
         # Divide by the number of nodes in the graph.
         base_loss /= input.y.shape[0]
+        print('base_loss contribution:', base_loss)
 
         # Update the total loss.
         total_loss = base_loss
@@ -68,16 +68,24 @@ class MAELossWithKLMessageReg(nn.Module):
             # Compute the KL div of the messages with a standard normal dist.
             s = input.x[input.edge_index[0]]  # sending / source nodes
             r = input.x[input.edge_index[1]]  # recieving / target nodes
+<<<<<<< Updated upstream
 
             messages = model.message(s, r)
             mu = messages[:, : model.msg_dim]
             logvar = messages[:, model.msg_dim :]
+=======
+            e = torch.cat([s, r], dim=1)
+            messages = model.msg_fnc(e)
+            mu = messages[:, : self.msg_dim]
+            logvar = messages[:, self.msg_dim :]
+>>>>>>> Stashed changes
             kl_reg = torch.sum(0.5 * (mu**2 + logvar.exp() - logvar - 1))
-
+            print('kl_reg:', kl_reg)
             # Divide by the number of edges in the graph.
             kl_reg /= messages.shape[0]
+            print('kl_reg contribution:', self.reg_weight * kl_reg)
 
             # Update the loss.
             total_loss += self.reg_weight * kl_reg
-
+            print('total_loss:', total_loss)
         return total_loss

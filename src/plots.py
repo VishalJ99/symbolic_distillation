@@ -11,6 +11,7 @@ plot_sparsity = True
 
 
 # Load the df. (replace with the pckled file and take the last df)
+<<<<<<< Updated upstream
 # with open("sampled_kl_messages_over_time_batch_per_epoch_5k.pkl", "rb") as f:
 #     messages_over_time = pkl.load(f)
 
@@ -22,6 +23,19 @@ for csv in csv_files:
         print(csv)
         messages_over_time.append(pd.read_csv(
             os.path.join(msgs_dir, csv)))
+=======
+with open("sampled_kl_messages_over_time_batch_per_epoch_5k.pkl", "rb") as f:
+    messages_over_time = pkl.load(f)
+
+# msgs_dir = 'train_runs/kl_vj_experiment/training_messages/'
+# messages_over_time = []
+# csv_files = sorted(os.listdir(msgs_dir), key=lambda x: int(x.split('_')[-1].split('.')[0]))
+# for csv in csv_files:
+#     if csv.endswith('.csv'):
+#         print(csv)
+#         messages_over_time.append(pd.read_csv(
+#             os.path.join(msgs_dir, csv)))
+>>>>>>> Stashed changes
 
 print(len(messages_over_time))
 

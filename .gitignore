@@ -15,3 +15,4 @@ simulations/models.py
 machine.file*
 *.out
 run_job.sh
+terminal_logs

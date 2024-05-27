@@ -9,7 +9,7 @@ save_messages: true               # Save messages to the output directory
 tqdm: false                # Use tqdm for progress bars - set to false for HPC as it creates massive logs
 
 # Data settings
-data_dir: '../rds/hpc-work/data/colab_spring_2d_4_body'                # Root directory for the dataset
+data_dir: 'data/colab_spring_2d_4_body'                # Root directory for the dataset
 quick_test: false                 # If true, use smaller subsets of the dataset for quick testing
 
 # Model settings
@@ -39,7 +39,7 @@ scheduler_params:                 # Parameters for the learning rate scheduler
 loss: 'loss+klreg'      # Loss function name (should match a loss in loss_factory)
 loss_params:                      # Parameters for the loss function initialization
   reg_weight: 1.0               # Example loss parameter (weight for L1 regularization)
-  msg_dim: 100
+  msg_dim: 100                     # Example loss parameter (message dimension)
 # # Transforms settings
 # pre_transforms:                   # Pre-transforms to apply to the dataset
 #   transform_1:
