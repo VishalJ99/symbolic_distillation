@@ -9,7 +9,7 @@
 #!#############################################################
 
 #! sbatch directives begin here ###############################
-#SBATCH --job-name=colab_all_edges_a4bcfc2              
+#SBATCH --job-name=standard_qt_90c8c0a              
 #SBATCH --account=MPHIL-DIS-SL2-GPU                # Account to submit to
 #SBATCH --partition=ampere                         # Partition to submit to
 #SBATCH --nodes=1                                  # Number of nodes
