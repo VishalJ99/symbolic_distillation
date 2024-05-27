@@ -9,7 +9,7 @@
 #!#############################################################
 
 #! sbatch directives begin here ###############################
-#SBATCH --job-name=standard_qt_90c8c0a              
+#SBATCH --job-name=standard_qt_c1245d1             
 #SBATCH --account=MPHIL-DIS-SL2-GPU                # Account to submit to
 #SBATCH --partition=ampere                         # Partition to submit to
 #SBATCH --nodes=1                                  # Number of nodes
