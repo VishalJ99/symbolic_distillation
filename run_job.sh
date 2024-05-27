@@ -17,7 +17,7 @@
 #SBATCH --cpus-per-task=1                          # Number of CPU cores per task
 #SBATCH --gres=gpu:1                               # Number of GPUs (per node)
 #SBATCH --mem=10G                                  # Memory (per node)
-#SBATCH --time=0-00:05                             # Time (DD-HH:MM)
+#SBATCH --time=0-10:00                             # Time (DD-HH:MM)
 #SBATCH --mail-type=NONE                           # Adjust if you want email notifications
 #SBATCH --output=logs/job-output-%j.out
 
