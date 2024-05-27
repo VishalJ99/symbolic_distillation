@@ -68,7 +68,6 @@ class MAELossWithKLMessageReg(nn.Module):
             r = input.x[input.edge_index[1]]  # recieving / target nodes
             e = torch.cat([s, r], dim=1)
 
-            # messages = model.msg_fnc(e)
             messages = model.edge_model(e)
             mu = messages[:, : self.msg_dim]
             logvar = messages[:, self.msg_dim :]
