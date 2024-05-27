@@ -43,9 +43,10 @@ class MAELossWithL1MessageReg(nn.Module):
 
 
 class MAELossWithKLMessageReg(nn.Module):
-    def __init__(self, reg_weight=1):
+    def __init__(self, reg_weight=1, msg_dim=100):
         super(MAELossWithKLMessageReg, self).__init__()
         self.reg_weight = reg_weight
+        self.msg_dim = msg_dim
 
     def forward(
         self,
@@ -69,8 +70,8 @@ class MAELossWithKLMessageReg(nn.Module):
             r = input.x[input.edge_index[1]]  # recieving / target nodes
 
             messages = model.message(s, r)
-            mu = messages[:, : model.msg_dim // 2]
-            logvar = messages[:, model.msg_dim // 2 :]
+            mu = messages[:, : model.msg_dim]
+            logvar = messages[:, model.msg_dim :]
             kl_reg = torch.sum(0.5 * (mu**2 + logvar.exp() - logvar - 1))
 
             # Divide by the number of edges in the graph.

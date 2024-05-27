@@ -14,3 +14,4 @@ simulations/models.py
 *.pt
 machine.file*
 *.out
+run_job.sh
