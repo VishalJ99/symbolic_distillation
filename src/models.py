@@ -59,7 +59,17 @@ class VarGNN(GNN):
             Linear(hidden, 2 * msg_dim),
         )
 
-    def message(self, x_i, x_j):
+    def forward(self, graph, sample=True):
+        x = graph.x
+        edge_index = graph.edge_index
+        return self.propagate(
+            edge_index, size=(x.size(0), x.size(0)), x=x, sample=sample
+        )
+
+    def message(self, x_i, x_j, sample=False):
+        # Sample False by default since util.get_node_message_info_df
+        # Doesnt take custom arguments and just calls message method.
+        # Want to just take message as mean for plotting.
         x = torch.cat([x_i, x_j], dim=1)
         param_msg = self.edge_model(x)
 
@@ -69,5 +79,9 @@ class VarGNN(GNN):
         std = torch.exp(0.5 * logvar)
 
         # Sample message.
-        msg = std * torch.randn_like(mu) + mu
+        msg = mu
+
+        if sample:
+            msg += std * torch.randn_like(mu)
+
         return msg
