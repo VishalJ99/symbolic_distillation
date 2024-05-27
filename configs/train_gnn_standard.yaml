@@ -2,7 +2,7 @@
 
 # General settings
 seed: 42                          # Random seed for reproducibility
-output_dir: '../rds/hpc-work/train_runs/standard_vj_experiment'            # Directory to save outputs (models, logs, etc.)
+output_dir: '../rds/hpc-work/train_runs/vj_standard_official'            # Directory to save outputs (models, logs, etc.)
 wandb: true                       # Enable Weights & Biases logging
 wandb_project: 'mphil_project'  # Weights & Biases project name
 save_messages: true               # Save messages to the output directory
