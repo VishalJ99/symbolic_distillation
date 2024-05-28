@@ -3,7 +3,6 @@ import os
 import random
 import torch
 from sklearn.model_selection import train_test_split
-import sys
 from models import GNN, VarGNN
 from losses import MAELossWithL1MessageReg, MAELossWithKLMessageReg
 from transforms import RandomTranslate
@@ -96,7 +95,7 @@ def make_dir(dir_path):
         os.makedirs(dir_path)
     except OSError:
         print(f"Directory: {dir_path} already exists..." " Exiting.")
-        sys.exit(1)
+        raise OSError
 
 
 def transforms_factory(transform_key, transform_params):

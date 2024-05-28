@@ -14,29 +14,6 @@ from plotting_utils import (
 )
 
 
-def make_sparsity_plot(msg_importance):
-    # Visualise the sparsity via the std of the edge message components.
-    fig, ax = plt.subplots(1, 1)
-    ax.pcolormesh(
-        msg_importance[np.argsort(msg_importance)[::-1][None, :15]],
-        cmap="gray_r",
-        edgecolors="k",
-    )
-
-    # Write std under the plot.
-    for i, std in enumerate(
-        msg_importance[np.argsort(msg_importance)[::-1][:15]]
-    ):
-        ax.text(i + 0.5, -0.5, "%.2f" % std, ha="center", va="center")
-
-    plt.axis("off")
-    plt.grid(True)
-    ax.set_aspect("equal")
-    plt.text(15.5, 0.5, "...", fontsize=30)
-    plt.tight_layout()
-    return fig, ax
-
-
 def main(messages_over_time, output_dir, plot_sparsity, delete_frames):
     # Initalise list to store filenames for frames to be used in GIF.
     frame_filenames = []
@@ -58,14 +35,39 @@ def main(messages_over_time, output_dir, plot_sparsity, delete_frames):
         msg_columns = [col for col in df.columns if "e" in col]
 
         # Fetch the message array.
-        msg_array = np.array(df[msg_columns])
+        msgs_array = np.array(df[msg_columns])
 
         # Select only top dim features by standard deviation.
-        msg_importance = msg_array.std(axis=0)
+        msgs_std = msgs_array.std(axis=0)
 
         if plot_sparsity:
             # Visualise the sparsity via the std of the edge message components.
-            fig, ax = make_sparsity_plot(msg_importance)
+            top_15_msgs_std = msgs_std[np.argsort(msgs_std)[::-1][None, :15]]
+            fig, ax = plt.subplots(1, 1)
+
+            ax.pcolormesh(
+                top_15_msgs_std,
+                cmap="gray_r",
+                edgecolors="k",
+            )
+            # Write std under the plot.
+            for i, std in enumerate(top_15_msgs_std.squeeze()):
+                x_pos = i if top_15_msgs_std.shape[1] == 15 else i + 0.5
+                y_pos = -0.75 if top_15_msgs_std.shape[1] == 15 else -0.25
+                ax.text(
+                    x_pos,
+                    y_pos,
+                    f"{std: .2e}",
+                    ha="center",
+                    va="center",
+                    rotation=45,
+                )
+
+            fig.suptitle("Frame %d" % idx)
+            plt.axis("off")
+            plt.grid(True)
+            ax.set_aspect("equal")
+            plt.text(15.5, 0.5, "...", fontsize=30)
 
         else:
             # TODO: Generalise force fnc.
@@ -77,8 +79,8 @@ def main(messages_over_time, output_dir, plot_sparsity, delete_frames):
 
             # Plot force components.
             # Select the dim most important messages.
-            most_important_idxs = np.argsort(msg_importance)[-dim:]
-            msgs_to_compare = msg_array[:, most_important_idxs]
+            most_important_idxs = np.argsort(msgs_std)[-dim:]
+            msgs_to_compare = msgs_array[:, most_important_idxs]
 
             # Standardise the messages.
             msgs_to_compare = (
@@ -150,7 +152,7 @@ def main(messages_over_time, output_dir, plot_sparsity, delete_frames):
 
                 ax[i].set_xlim(xlim)
                 ax[i].set_ylim(ylim)
-
+                fig.suptitle("Frame %d" % idx)
                 plt.tight_layout()
 
         # Save the plot to a file.
@@ -160,7 +162,10 @@ def main(messages_over_time, output_dir, plot_sparsity, delete_frames):
         frame_filenames.append(filename)
 
     # Create the GIF.
-    with imageio.get_writer("force.gif", mode="I", duration=0.5) as writer:
+    output_gif_path = os.path.join(
+        output_dir, "sparsity.gif" if plot_sparsity else "force.gif"
+    )
+    with imageio.get_writer(output_gif_path, mode="I", duration=0.5) as writer:
         for filename in frame_filenames:
             frame = imageio.imread(filename)
             writer.append_data(frame)
@@ -191,6 +196,11 @@ if __name__ == "__main__":
     plot_sparsity = args.plot_sparsity
     delete_frames = args.delete_frames
 
+    try:
+        os.makedirs(output_dir)
+    except Exception:
+        pass
+
     if input_path.endswith(".pkl"):
         with open(input_path, "rb") as f:
             messages_over_time = pkl.load(f)
@@ -201,12 +211,12 @@ if __name__ == "__main__":
             key=lambda x: int(x.split("_")[-1].split(".")[0]),
         )
         for csv in csv_files:
-            print("[INFO] Reading", csv)
+            print("\r[INFO] Reading", csv, end="")
             if csv.endswith(".csv"):
                 messages_over_time.append(
                     pd.read_csv(os.path.join(input_path, csv))
                 )
 
-    print(f"[INFO] Identified {len(messages_over_time)} frames.")
+    print(f"\n[INFO] Identified {len(messages_over_time)} frames.")
 
     main(messages_over_time, output_dir, plot_sparsity, delete_frames)
