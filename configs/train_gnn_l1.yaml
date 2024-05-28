@@ -17,7 +17,7 @@ model_state_dict: null            # Path to a model state dict to load
 model: gnn                # Model name (should match a model in model_factory)
 model_params:                     # Parameters for the model initialization
   n_f: 6                         # Example model parameter (number of features)
-  msg_dim: 2                     # Example model parameter (message dimension)
+  msg_dim: 100                     # Example model parameter (message dimension)
   ndim: 2                        # Example model parameter (node dimension)
   hidden: 300                     # Example model parameter (hidden layer size)
   aggr: 'add'                     # Example model parameter (aggregation method)

@@ -43,6 +43,7 @@ def main(messages_over_time, output_dir, plot_sparsity, delete_frames):
 
     # Loop over each node message dataframe in messages_over_time.
     for idx, df in enumerate(messages_over_time):
+        print(f'\r[INFO] Reading frame {idx}/{len(messages_over_time)}',end='')
         # Set dim by checking if z is present in columns.
         dim = 3 if "z1" in df.columns else 2
 
@@ -128,7 +129,7 @@ def main(messages_over_time, output_dir, plot_sparsity, delete_frames):
                 )
                 ax[i].set_xlabel("Linear Transformation of True Forces")
                 ax[i].set_ylabel("Message Element %d" % (i + 1))
-
+                fig.suptitle(f"Frame {idx}")
                 xlim = np.array(
                     [
                         np.percentile(transformed_forces[:, i], q)
@@ -201,7 +202,6 @@ if __name__ == "__main__":
             key=lambda x: int(x.split("_")[-1].split(".")[0]),
         )
         for csv in csv_files:
-            print("[INFO] Reading", csv)
             if csv.endswith(".csv"):
                 messages_over_time.append(
                     pd.read_csv(os.path.join(input_path, csv))
