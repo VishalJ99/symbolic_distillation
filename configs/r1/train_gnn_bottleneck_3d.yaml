@@ -1,0 +1,53 @@
+# Training configuration file for the GNN model (CHAT GPT GENERATED)
+
+# General settings
+seed: 42                          # Random seed for reproducibility
+output_dir: '../rds/hpc-work/train_runs/half_size/r1_3d/bottleneck'            # Directory to save outputs (models, logs, etc.)
+wandb: true                       # Enable Weights & Biases logging
+wandb_project: 'mphil_project'  # Weights & Biases project name
+save_messages: true               # Save messages to the output directory
+tqdm: false                # Use tqdm for progress bars - set to false for HPC as it creates massive logs
+
+# Data settings
+data_dir: '../rds/hpc-work/test_data/r1_3d'                # Root directory for the dataset
+quick_test: false                 # If true, use smaller subsets of the dataset for quick testing
+
+# Model settings
+model_state_dict: null            # Path to a model state dict to load
+model: gnn                # Model name (should match a model in model_factory)
+model_params:                     # Parameters for the model initialization
+  n_f: 8                         # Example model parameter (number of features)
+  msg_dim: 3                     # Example model parameter (message dimension)
+  ndim: 3                        # Example model parameter (node dimension)
+  hidden: 300                     # Example model parameter (hidden layer size)
+  aggr: 'add'                     # Example model parameter (aggregation method)
+
+# Training settings
+epochs: 100                      # Number of epochs to train
+train_batch_size: 64              # Training batch size
+val_batch_size: 1024                # Validation batch size
+lr: 0.001                         # Learning rate
+weight_decay: 1.0e-8                # Weight decay for the optimizer (L2 regularization)
+save_every_n_epochs: 5            # Frequency of saving model weights (in epochs)
+
+# Scheduler settings
+scheduler_params:                 # Parameters for the learning rate scheduler
+  max_lr: 0.001                   # Maximum learning rate
+  final_div_factor: 1.0e+5           # Final division factor for the scheduler
+
+# Loss settings
+loss: 'loss+l1reg'      # Loss function name (should match a loss in loss_factory)
+loss_params:                      # Parameters for the loss function initialization
+  reg_weight: 0               # Example loss parameter (weight for L1 regularization)
+# # Transforms settings
+# pre_transforms:                   # Pre-transforms to apply to the dataset
+#   transform_1:
+#      transform_1_params                 # Replace with actual transform names and parameters
+
+augmentations:                    # Augmentations to apply during training
+  random_translate:
+    scale: 3
+    dims:
+      - 0
+      - 1
+      - 2
