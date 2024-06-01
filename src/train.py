@@ -35,7 +35,7 @@ def main(config):
 
     if config["save_messages"]:
         # Create output directory to save messages during training.
-        messages_dir_path = os.path.join(output_dir, "training_messages")
+        messages_dir_path = os.path.join(output_dir, "train_messages")
         make_dir(messages_dir_path)
 
     if os.path.exists(".git"):

@@ -1,17 +1,17 @@
 # Test configuration file for the GNN model
 
 # General settings
-output_dir: '../rds/hpc-work/test_runs/half_size/charge_3d/standard'  # Directory to save outputs (results, logs, etc.)
+output_dir: '../rds/hpc-work/test_runs/half_size/r2_3d/standard'  # Directory to save outputs (results, logs, etc.)
 tqdm: false                      # Use tqdm for progress bars - set to false for HPC as it creates massive logs
 save_messages: true              # Save messages to the output directory
 message_save_limit: 100000       # Limit for saving messages to avoid large file sizes
 
 # Data settings
-data_dir: '../rds/hpc-work/test_data/charge_3d'  # Root directory for the test dataset
+data_dir: '../rds/hpc-work/test_data/r2_3d'  # Root directory for the test dataset
 test_batch_size: 1024              # Batch size for testing
 
 # Model settings
-model_weights_dir: '../rds/hpc-work/train_runs/half_size/charge_3d/standard/model_weights/best_model.pt' # Directory containing model weights
+model_weights_dir: '../rds/hpc-work/train_runs/half_size/r2_3d/standard/model_weights' # Directory containing model weights
 model: gnn                       # Model name (should match a model in model_factory)
 model_params:                    # Parameters for the model initialization
   n_f: 8                         # Number of features
