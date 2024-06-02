@@ -1,0 +1,18 @@
+data_dir: ../rds/hpc-work/test_data/r2_2d
+loss: loss+klreg
+loss_params:
+  msg_dim: 100
+  reg_weight: 1.0
+message_save_limit: 100000
+model: vargnn
+model_params:
+  aggr: add
+  hidden: 300
+  msg_dim: 100
+  n_f: 6
+  ndim: 2
+model_weights_path: ../rds/hpc-work/train_runs/half_size/r2_2d/kl/model_weights/best_model.pt
+output_dir: ../rds/hpc-work/test_runs/half_size/r2_2d/kl
+save_messages: true
+test_batch_size: 1024
+tqdm: false

@@ -58,8 +58,7 @@ def main(config):
     model = model_factory(config["model"], config["model_params"]).to(device)
 
     # Load the saved model weights.
-    model_path = os.path.join(config["model_weights_dir"], "best_model.pt")
-    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.load_state_dict(torch.load(config["model_weights_path"], map_location=device))
     print("[INFO] Model loaded successfully.")
 
     # Move model and data loader to device.
