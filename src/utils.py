@@ -95,7 +95,7 @@ def make_dir(dir_path):
         os.makedirs(dir_path)
     except OSError:
         print(f"Directory: {dir_path} already exists..." " Exiting.")
-        raise OSError
+        exit(1)
 
 
 def transforms_factory(transform_key, transform_params):

@@ -2,14 +2,14 @@
 
 # General settings
 seed: 42                          # Random seed for reproducibility
-output_dir: '../rds/hpc-work/train_runs/half_size/spring_2d/l1'            # Directory to save outputs (models, logs, etc.)
+output_dir: 'train_runs/spring_2d_nans_l1'            # Directory to save outputs (models, logs, etc.)
 wandb: true                       # Enable Weights & Biases logging
 wandb_project: 'mphil_project'  # Weights & Biases project name
 save_messages: true               # Save messages to the output directory
 tqdm: false                # Use tqdm for progress bars - set to false for HPC as it creates massive logs
 
 # Data settings
-data_dir: '../rds/hpc-work/test_data/spring_2d'                # Root directory for the dataset
+data_dir: 'tmp/spring_2d'                # Root directory for the dataset
 quick_test: false                 # If true, use smaller subsets of the dataset for quick testing
 
 # Model settings
@@ -24,7 +24,7 @@ model_params:                     # Parameters for the model initialization
 
 # Training settings
 epochs: 100                      # Number of epochs to train
-train_batch_size: 64              # Training batch size
+train_batch_size: 1              # Training batch size
 val_batch_size: 1024                # Validation batch size
 lr: 0.001                         # Learning rate
 weight_decay: 1.0e-8                # Weight decay for the optimizer (L2 regularization)

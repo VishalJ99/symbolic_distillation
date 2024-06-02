@@ -4,7 +4,7 @@ import wandb
 import yaml
 from accelerate import Accelerator
 import torch
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
 from torch.utils.data import Subset
 from torch.optim.lr_scheduler import OneCycleLR
@@ -19,6 +19,9 @@ from utils import (
     loss_factory,
     get_node_message_info_df,
 )
+
+import math
+from icecream import ic
 
 
 def main(config):
@@ -159,20 +162,51 @@ def main(config):
             if config["tqdm"]
             else train_loader
         )
-        for graph in train_loader_iter:
+        for idx, graph in enumerate(train_loader_iter):
+            # Fix the data.
+            graph.x = torch.tensor([[ 2.2202e+00,  1.6766e+02, -3.9003e+00,  1.6097e+02, -1.7603e+00,
+                       4.2084e-01],
+                     [ 3.9889e+00,  9.6896e+01, -1.4127e+00,  9.2836e+01, -1.1769e+00,
+                       6.7970e+00],
+                     [ 2.1293e+00,  2.9786e+02,  1.1205e+01, -5.2351e+02,  1.4785e+00,
+                       1.8737e+00],
+                     [ 2.2448e+00,  1.3943e+02, -2.4135e+00,  1.3695e+02, -3.4051e-01,
+                       2.0409e+00]], device='mps:0')
+            
+            graph.y = torch.tensor([[   7.9716,  152.9215],
+                     [  -1.5589,   91.5972],
+                     [   2.1940, -519.4327],
+                     [   1.5336,  140.2835]], device='mps:0')
+            
             optim.zero_grad()
             pred = model(graph)
-            loss = loss_fn(graph, pred, model)
-
-            accelerator.backward(loss)
-            optim.step()
-            sched.step()
+            loss, params = loss_fn(graph, pred, model)
+            ic(graph.x,graph.y,pred,loss,params)
+            
+            # accelerator.backward(loss)
+            # optim.step()
+            # sched.step()
+           
+            # Press k to continue the loop.
+            user_input = input("Press 'k' to continue the loop: ")
+            if user_input == "k":
+                continue
+            exit(1)
+ 
 
             total_train_loss += loss.item()
             num_train_items += 1
 
             avg_train_loss = total_train_loss / num_train_items
-
+            
+            # Check if avg_train_loss is nan.
+            if math.isnan(avg_train_loss):
+                print("[INFO] Training loss is NaN. Exiting...")
+                ic(graph.x)
+                ic(graph.y)
+                ic(pred)
+                ic(params)
+                exit(1)
             if config["tqdm"]:
                 train_loader_iter.set_postfix(avg_train_loss=avg_train_loss)
 

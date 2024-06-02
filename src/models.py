@@ -74,8 +74,8 @@ class VarGNN(GNN):
         param_msg = self.edge_model(x)
 
         # Unpack message parameters.
-        mu = param_msg[:, : self.msg_dim]
-        logvar = param_msg[:, self.msg_dim :]
+        mu = param_msg[:, ::2]
+        logvar = param_msg[:,1 ::2]
         std = torch.exp(0.5 * logvar)
 
         # Sample message.
