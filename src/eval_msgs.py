@@ -13,8 +13,8 @@ from plotting_utils import (
     out_linear_transformation_3d,
     # force_dict,
 )
-from icecream import ic
 from pysr import PySRRegressor
+import shutil
 
 
 def main(input_csv, output_dir, eps=1e-2, standarise=True):
@@ -154,7 +154,6 @@ def main(input_csv, output_dir, eps=1e-2, standarise=True):
 
     # Fit a symbolic regression model for each component
     X_cols = pos_cols + ["r", "m1", "m2"]
-    ic(X_cols)
     for i in range(dim):
         X = df[X_cols].to_numpy()
         Y = most_important_msgs[:, i]
@@ -171,7 +170,19 @@ def main(input_csv, output_dir, eps=1e-2, standarise=True):
         )
 
         model.fit(X_sample, Y_sample)
-        print(model.sympy())
+
+        # Move model state pkl to output directory.
+        model_state_src = os.path.join(
+            os.getcwd(), model.equation_file_[:-3] + "pkl"
+        )
+        model_state_dst = os.path.join(output_dir, f"model_{i+1}.pkl")
+        print(f"[INFO] Saved model state to {model_state_dst}")
+        shutil.move(model_state_src, model_state_dst)
+
+        # Clean up the saved csvs.
+        os.remove(os.path.join(os.getcwd(), model.equation_file_))
+        os.remove(os.path.join(os.getcwd(), model.equation_file_ + ".bkup"))
+        break
 
 
 if __name__ == "__main__":
