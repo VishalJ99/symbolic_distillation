@@ -1,0 +1,36 @@
+seed: 42
+output_dir: train_runs/half_size/r2_2d/l1
+wandb: true
+wandb_project: mphil_project
+save_messages: true
+tqdm: false
+debug: false
+data_dir: data/test_data_hpc_reproduce/r2_2d
+prune_graphs: 99.99
+quick_test: false
+model_state_path: null
+model: gnn
+model_params:
+  n_f: 6
+  msg_dim: 100
+  ndim: 2
+  hidden: 300
+  aggr: add
+epochs: 100
+train_batch_size: 64
+val_batch_size: 1024
+lr: 0.001
+weight_decay: 1.0e-08
+save_every_n_epochs: 5
+scheduler_params:
+  max_lr: 0.001
+  final_div_factor: 100000.0
+loss: maeloss+l1reg
+loss_params:
+  reg_weight: 0.01
+augmentations:
+  random_translate:
+    scale: 3
+    dims:
+    - 0
+    - 1

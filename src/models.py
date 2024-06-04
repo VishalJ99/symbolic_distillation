@@ -47,7 +47,6 @@ class GNN(MessagePassing):
 class VarGNN(GNN):
     def __init__(self, n_f, msg_dim, ndim, hidden=300, aggr="add"):
         super(VarGNN, self).__init__(n_f, msg_dim, ndim, hidden, aggr)
-        assert msg_dim % 2 == 0, f"msg_dim must be even. Currently: {msg_dim}"
         self.msg_dim = msg_dim
         self.edge_model = Sequential(
             Linear(2 * n_f, hidden),
@@ -74,8 +73,8 @@ class VarGNN(GNN):
         param_msg = self.edge_model(x)
 
         # Unpack message parameters.
-        mu = param_msg[:, : self.msg_dim]
-        logvar = param_msg[:, self.msg_dim :]
+        mu = param_msg[:, ::2]
+        logvar = param_msg[:,1 ::2]
         std = torch.exp(0.5 * logvar)
 
         # Sample message.

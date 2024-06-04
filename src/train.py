@@ -4,7 +4,7 @@ import wandb
 import yaml
 from accelerate import Accelerator
 import torch
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
 from torch.utils.data import Subset
 from torch.optim.lr_scheduler import OneCycleLR
@@ -18,7 +18,10 @@ from utils import (
     model_factory,
     loss_factory,
     get_node_message_info_df,
+    debug_logs,
 )
+
+import math
 
 
 def main(config):
@@ -72,6 +75,7 @@ def main(config):
     else:
         augmentations = None
 
+    # Initialise pre-transforms if specified in the configuration.
     if "pre_transforms" in config:
         pre_transforms = Compose(
             transforms_factory(k, v)
@@ -85,11 +89,16 @@ def main(config):
     val_dir = os.path.join(config["data_dir"], "val")
 
     train_dataset = ParticleDynamicsDataset(
-        root=train_dir, transform=augmentations, pre_transform=pre_transforms
+        root=train_dir,
+        transform=augmentations,
+        pre_transform=pre_transforms,
+        prune_outliers=config["prune_graphs"],
     )
 
     val_dataset = ParticleDynamicsDataset(
-        root=val_dir, pre_transform=pre_transforms
+        root=val_dir,
+        pre_transform=pre_transforms,
+        prune_outliers=config["prune_graphs"],
     )
 
     if config["quick_test"]:
@@ -113,9 +122,15 @@ def main(config):
     model = model_factory(config["model"], config["model_params"])
 
     # Load state dict if specified in the config.
-    if config["model_state_dict"]:
-        model.load_state_dict(torch.load(config["model_state_dict"]))
+    if config["model_state_path"]:
+        model.load_state_dict(torch.load(config["model_state_path"]))
         print("[INFO] Loaded model state dict...")
+    else:
+        print(f"[INFO] Saving seed model weights to {weights_dir_path}...")
+        torch.save(
+            model.state_dict(),
+            os.path.join(weights_dir_path, "seed_model.pt"),
+        )
 
     # Initialise the optimiser.
     total_epochs = config["epochs"]
@@ -159,10 +174,10 @@ def main(config):
             if config["tqdm"]
             else train_loader
         )
-        for graph in train_loader_iter:
+        for idx, graph in enumerate(train_loader_iter):
             optim.zero_grad()
             pred = model(graph)
-            loss = loss_fn(graph, pred, model)
+            loss, train_loss_components_dict = loss_fn(graph, pred, model)
 
             accelerator.backward(loss)
             optim.step()
@@ -170,8 +185,18 @@ def main(config):
 
             total_train_loss += loss.item()
             num_train_items += 1
-
             avg_train_loss = total_train_loss / num_train_items
+
+            if config["debug"]:
+                debug_logs(graph, pred, loss, train_loss_components_dict)
+
+                user_input = input("[DEBUG] Continue training? (y/n): ")
+                if user_input == "n":
+                    exit(1)
+
+            if math.isnan(avg_train_loss):
+                print("[INFO] Training loss is NaN. Exiting...")
+                exit(1)
 
             if config["tqdm"]:
                 train_loader_iter.set_postfix(avg_train_loss=avg_train_loss)
@@ -180,6 +205,8 @@ def main(config):
 
         if config["wandb"]:
             wandb.log({"avg_train_loss": avg_train_loss})
+            for k, v in train_loss_components_dict.items():
+                wandb.log({"train_" + k: v})
 
         # Validation phase
         total_val_loss = 0
@@ -193,19 +220,25 @@ def main(config):
             )
             for graph in val_loader_iter:
                 pred = model(graph)
+                val_loss, val_loss_components_dict = loss_fn(graph, pred, model)
 
-                val_loss = loss_fn(graph, pred, model).item()
-
-                total_val_loss += val_loss
+                total_val_loss += val_loss.item()
                 num_val_items += 1
                 avg_val_loss = total_val_loss / num_val_items
+
                 if config["tqdm"]:
                     val_loader_iter.set_postfix(avg_val_loss=avg_val_loss)
 
             print(f"Average validation loss for Epoch: {avg_val_loss}")
 
+            if math.isnan(avg_val_loss):
+                print("[INFO] Validation loss is NaN. Exiting...")
+                exit(1)
+
             if config["wandb"]:
                 wandb.log({"avg_val_loss": avg_val_loss})
+                for k, v in val_loss_components_dict.items():
+                    wandb.log({"val_" + k: v})
 
         if avg_val_loss < max_val_loss:
             torch.save(
@@ -267,3 +300,4 @@ if __name__ == "__main__":
         config = yaml.safe_load(f)
 
     main(config)
+    print("[SUCCESS] Training complete.")
