@@ -70,9 +70,6 @@ class ParticleDynamicsDataset(InMemoryDataset):
         if files_exist(self.processed_paths):  # pragma: no cover
             return
 
-        if self.log and "pytest" not in sys.modules:
-            print("Processing...", file=sys.stderr)
-
         os.makedirs(self.processed_dir, exist_ok=True)
         self.process()
 
@@ -176,6 +173,7 @@ class ParticleDynamicsDataset(InMemoryDataset):
         # Get edge indices.
         edge_index = get_edge_index(f)
 
+        print(f"[INFO] Creating Processed Dataset at {self.processed_dir}")
         data_list = [
             Data(
                 x=pos_vel_charge_mass_t[k],

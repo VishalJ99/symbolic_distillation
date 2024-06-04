@@ -18,10 +18,10 @@ from utils import (
     model_factory,
     loss_factory,
     get_node_message_info_df,
+    debug_logs,
 )
 
 import math
-from icecream import ic
 
 
 def main(config):
@@ -75,6 +75,7 @@ def main(config):
     else:
         augmentations = None
 
+    # Initialise pre-transforms if specified in the configuration.
     if "pre_transforms" in config:
         pre_transforms = Compose(
             transforms_factory(k, v)
@@ -88,11 +89,16 @@ def main(config):
     val_dir = os.path.join(config["data_dir"], "val")
 
     train_dataset = ParticleDynamicsDataset(
-        root=train_dir, transform=augmentations, pre_transform=pre_transforms
+        root=train_dir,
+        transform=augmentations,
+        pre_transform=pre_transforms,
+        prune_outliers=config["prune_graphs"],
     )
 
     val_dataset = ParticleDynamicsDataset(
-        root=val_dir, pre_transform=pre_transforms
+        root=val_dir,
+        pre_transform=pre_transforms,
+        prune_outliers=config["prune_graphs"],
     )
 
     if config["quick_test"]:
@@ -116,9 +122,15 @@ def main(config):
     model = model_factory(config["model"], config["model_params"])
 
     # Load state dict if specified in the config.
-    if config["model_state_dict"]:
-        model.load_state_dict(torch.load(config["model_state_dict"]))
+    if config["model_state_path"]:
+        model.load_state_dict(torch.load(config["model_state_path"]))
         print("[INFO] Loaded model state dict...")
+    else:
+        print(f"[INFO] Saving seed model weights to {weights_dir_path}...")
+        torch.save(
+            model.state_dict(),
+            os.path.join(weights_dir_path, "seed_model.pt"),
+        )
 
     # Initialise the optimiser.
     total_epochs = config["epochs"]
@@ -163,50 +175,29 @@ def main(config):
             else train_loader
         )
         for idx, graph in enumerate(train_loader_iter):
-            # Fix the data.
-            graph.x = torch.tensor([[ 2.2202e+00,  1.6766e+02, -3.9003e+00,  1.6097e+02, -1.7603e+00,
-                       4.2084e-01],
-                     [ 3.9889e+00,  9.6896e+01, -1.4127e+00,  9.2836e+01, -1.1769e+00,
-                       6.7970e+00],
-                     [ 2.1293e+00,  2.9786e+02,  1.1205e+01, -5.2351e+02,  1.4785e+00,
-                       1.8737e+00],
-                     [ 2.2448e+00,  1.3943e+02, -2.4135e+00,  1.3695e+02, -3.4051e-01,
-                       2.0409e+00]], device='mps:0')
-            
-            graph.y = torch.tensor([[   7.9716,  152.9215],
-                     [  -1.5589,   91.5972],
-                     [   2.1940, -519.4327],
-                     [   1.5336,  140.2835]], device='mps:0')
-            
             optim.zero_grad()
             pred = model(graph)
-            loss, params = loss_fn(graph, pred, model)
-            ic(graph.x,graph.y,pred,loss,params)
-            
-            # accelerator.backward(loss)
-            # optim.step()
-            # sched.step()
-           
-            # Press k to continue the loop.
-            user_input = input("Press 'k' to continue the loop: ")
-            if user_input == "k":
-                continue
-            exit(1)
- 
+            loss, train_loss_components_dict = loss_fn(graph, pred, model)
+
+            accelerator.backward(loss)
+            optim.step()
+            sched.step()
 
             total_train_loss += loss.item()
             num_train_items += 1
-
             avg_train_loss = total_train_loss / num_train_items
-            
-            # Check if avg_train_loss is nan.
+
+            if config["debug"]:
+                debug_logs(graph, pred, loss, train_loss_components_dict)
+
+                user_input = input("[DEBUG] Continue training? (y/n): ")
+                if user_input == "n":
+                    exit(1)
+
             if math.isnan(avg_train_loss):
                 print("[INFO] Training loss is NaN. Exiting...")
-                ic(graph.x)
-                ic(graph.y)
-                ic(pred)
-                ic(params)
                 exit(1)
+
             if config["tqdm"]:
                 train_loader_iter.set_postfix(avg_train_loss=avg_train_loss)
 
@@ -214,6 +205,8 @@ def main(config):
 
         if config["wandb"]:
             wandb.log({"avg_train_loss": avg_train_loss})
+            for k, v in train_loss_components_dict.items():
+                wandb.log({"train_" + k: v})
 
         # Validation phase
         total_val_loss = 0
@@ -227,19 +220,25 @@ def main(config):
             )
             for graph in val_loader_iter:
                 pred = model(graph)
+                val_loss, val_loss_components_dict = loss_fn(graph, pred, model)
 
-                val_loss = loss_fn(graph, pred, model).item()
-
-                total_val_loss += val_loss
+                total_val_loss += val_loss.item()
                 num_val_items += 1
                 avg_val_loss = total_val_loss / num_val_items
+
                 if config["tqdm"]:
                     val_loader_iter.set_postfix(avg_val_loss=avg_val_loss)
 
             print(f"Average validation loss for Epoch: {avg_val_loss}")
 
+            if math.isnan(avg_val_loss):
+                print("[INFO] Validation loss is NaN. Exiting...")
+                exit(1)
+
             if config["wandb"]:
                 wandb.log({"avg_val_loss": avg_val_loss})
+                for k, v in val_loss_components_dict.items():
+                    wandb.log({"val_" + k: v})
 
         if avg_val_loss < max_val_loss:
             torch.save(
@@ -301,3 +300,4 @@ if __name__ == "__main__":
         config = yaml.safe_load(f)
 
     main(config)
+    print("[SUCCESS] Training complete.")

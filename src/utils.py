@@ -117,8 +117,8 @@ def loss_factory(loss, loss_params):
     loss parameters and returns a loss function.
     """
     loss_dict = {
-        "loss+l1reg": MAELossWithL1MessageReg,
-        "loss+klreg": MAELossWithKLMessageReg,
+        "maeloss+l1reg": MAELossWithL1MessageReg,
+        "maeloss+klreg": MAELossWithKLMessageReg,
     }
 
     loss_fn = loss_dict[loss](**loss_params)
@@ -177,3 +177,20 @@ def get_node_message_info_df(graph: Data, model: MessagePassing, dim: int):
         df["r"] = np.sqrt((df.dx) ** 2 + (df.dy) ** 2 + (df.dz) ** 2)
 
     return df
+
+
+def debug_logs(graph, pred, train_loss_components_dict, loss):
+    print("Node Data for First Graph in Batch:")
+    print(graph.x[: graph.ptr[1]])
+
+    print("Labels for First Graph in Batch:")
+    print(graph.y[: graph.ptr[1]])
+
+    print("Pred for First Graph in Batch:")
+    print(pred[: graph.ptr[1]])
+
+    print("Loss Components for Entire Batch:")
+    print(train_loss_components_dict)
+
+    print("Loss for Entire Batch:")
+    print(loss.item())
