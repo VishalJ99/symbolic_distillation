@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import Batch
 from torch_geometric.nn import MessagePassing
-from icecream import ic
+
 class MAELossWithL1MessageReg(nn.Module):
     def __init__(self, reg_weight=1e-2):
         super(MAELossWithL1MessageReg, self).__init__()
@@ -38,7 +38,6 @@ class MAELossWithL1MessageReg(nn.Module):
 
             # Update the total loss.
             total_loss += self.reg_weight * l1_reg
-            print(f'after calculating l1 reg: {base_loss}')
        
         params = {
             'base_loss' : base_loss,

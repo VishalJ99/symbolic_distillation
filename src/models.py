@@ -47,7 +47,6 @@ class GNN(MessagePassing):
 class VarGNN(GNN):
     def __init__(self, n_f, msg_dim, ndim, hidden=300, aggr="add"):
         super(VarGNN, self).__init__(n_f, msg_dim, ndim, hidden, aggr)
-        assert msg_dim % 2 == 0, f"msg_dim must be even. Currently: {msg_dim}"
         self.msg_dim = msg_dim
         self.edge_model = Sequential(
             Linear(2 * n_f, hidden),
