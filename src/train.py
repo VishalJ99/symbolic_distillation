@@ -201,7 +201,7 @@ def main(config):
             if config["tqdm"]:
                 train_loader_iter.set_postfix(avg_train_loss=avg_train_loss)
 
-        print(f"Average training loss for Epoch: {avg_train_loss}")
+        print(f"[INFO]Average training loss for Epoch: {avg_train_loss}")
 
         if config["wandb"]:
             wandb.log({"avg_train_loss": avg_train_loss})
@@ -229,7 +229,7 @@ def main(config):
                 if config["tqdm"]:
                     val_loader_iter.set_postfix(avg_val_loss=avg_val_loss)
 
-            print(f"Average validation loss for Epoch: {avg_val_loss}")
+            print(f"[INFO] Average validation loss for Epoch: {avg_val_loss}")
 
             if math.isnan(avg_val_loss):
                 print("[INFO] Validation loss is NaN. Exiting...")

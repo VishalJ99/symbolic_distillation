@@ -39,10 +39,13 @@ class MAELossWithL1MessageReg(nn.Module):
             # Update the total loss.
             total_loss += self.reg_weight * l1_reg
        
-        params = {
-            'base_loss' : base_loss,
-            'l1_reg' : l1_reg,
-        }
+            params = {
+                'base_loss' : base_loss,
+                'l1_reg' : l1_reg,
+            }
+        else:
+            params = {}
+
         return total_loss, params
 
 
@@ -86,9 +89,13 @@ class MAELossWithKLMessageReg(nn.Module):
             # Update the loss.
             total_loss += self.reg_weight * kl_reg
 
-        # create params dict of max min values of all quantities
-        params = {
-            'kl_reg' : kl_reg,
-            'base_loss' : base_loss
-        }
+            # create params dict of max min values of all quantities
+            params = {
+                'kl_reg' : kl_reg,
+                'base_loss' : base_loss
+            }
+        
+        else: 
+            params = {}
+            
         return total_loss, params
