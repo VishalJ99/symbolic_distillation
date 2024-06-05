@@ -177,7 +177,8 @@ def main(config):
         for idx, graph in enumerate(train_loader_iter):
             optim.zero_grad()
             pred = model(graph)
-            loss, train_loss_components_dict = loss_fn(graph, pred, model)
+            # TODO: Handle saving of params dict...
+            loss, _ = loss_fn(graph, pred, model)
 
             accelerator.backward(loss)
             optim.step()
@@ -188,7 +189,7 @@ def main(config):
             avg_train_loss = total_train_loss / num_train_items
 
             if config["debug"]:
-                debug_logs(graph, pred, loss, train_loss_components_dict)
+                debug_logs(graph, pred, loss, _)
 
                 user_input = input("[DEBUG] Continue training? (y/n): ")
                 if user_input == "n":
@@ -201,12 +202,11 @@ def main(config):
             if config["tqdm"]:
                 train_loader_iter.set_postfix(avg_train_loss=avg_train_loss)
 
-        print(f"[INFO]Average training loss for Epoch: {avg_train_loss}")
+        print(f"[INFO] Average training loss for Epoch: {avg_train_loss}")
 
         if config["wandb"]:
             wandb.log({"avg_train_loss": avg_train_loss})
-            for k, v in train_loss_components_dict.items():
-                wandb.log({"train_" + k: v})
+
 
         # Validation phase
         total_val_loss = 0
@@ -220,7 +220,7 @@ def main(config):
             )
             for graph in val_loader_iter:
                 pred = model(graph)
-                val_loss, val_loss_components_dict = loss_fn(graph, pred, model)
+                val_loss, _ = loss_fn(graph, pred, model)
 
                 total_val_loss += val_loss.item()
                 num_val_items += 1
@@ -237,8 +237,6 @@ def main(config):
 
             if config["wandb"]:
                 wandb.log({"avg_val_loss": avg_val_loss})
-                for k, v in val_loss_components_dict.items():
-                    wandb.log({"val_" + k: v})
 
         if avg_val_loss < max_val_loss:
             torch.save(

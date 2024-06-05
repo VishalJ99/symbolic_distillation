@@ -19,7 +19,7 @@
 #SBATCH --mem=10G                                  # Memory (per node)
 #SBATCH --time=0-14:00                             # Time (DD-HH:MM)
 #SBATCH --mail-type=NONE                           # Adjust if you want email notifications
-#SBATCH --output=train_logs_pruned/job-output-%j.out
+#SBATCH --output=train_logs_unpruned/job-output-%j.out
 
 #! Uncomment this to prevent the job from being requeued (e.g. if
 #! interrupted by node failure or system downtime):

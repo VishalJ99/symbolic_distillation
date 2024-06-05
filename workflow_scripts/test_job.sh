@@ -9,7 +9,7 @@
 #!#############################################################
 
 #! sbatch directives begin here ###############################
-#SBATCH --job-name=test_model               
+#SBATCH --job-name=test_pruned_model               
 #SBATCH --account=MPHIL-DIS-SL2-GPU                # Account to submit to
 #SBATCH --partition=ampere                         # Partition to submit to
 #SBATCH --nodes=1                                  # Number of nodes
@@ -19,7 +19,7 @@
 #SBATCH --mem=10G                                  # Memory (per node)
 #SBATCH --time=0-00:30                             # Time (DD-HH:MM)
 #SBATCH --mail-type=NONE                           # Adjust if you want email notifications
-#SBATCH --output=test_logs-2/job-output-%j.out
+#SBATCH --output=test_pruned/job-output-%j .out
 
 #! Uncomment this to prevent the job from being requeued (e.g. if
 #! interrupted by node failure or system downtime):
