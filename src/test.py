@@ -6,6 +6,8 @@ from accelerate import Accelerator
 import torch
 import numpy as np
 from torch_geometric.loader import DataLoader
+from torch.utils.data import Subset
+
 import pandas as pd
 from tqdm import tqdm
 
@@ -47,7 +49,16 @@ def main(config):
 
     # Load the test dataset.
     test_dir = os.path.join(config["data_dir"], "test")
-    test_dataset = ParticleDynamicsDataset(root=test_dir, pre_transform=None)
+    test_dataset = ParticleDynamicsDataset(
+        root=test_dir,
+        pre_transform=None,
+        prune_outliers=config["prune_outliers"],
+    )
+    if config["quick_test"]:
+        # Create smaller subsets of the datasets for quick testing.
+        test_indices = list(range(config["test_batch_size"]))
+
+        test_dataset = Subset(test_dataset, test_indices)
 
     # Initialise DataLoader for the test dataset.
     test_loader = DataLoader(
@@ -58,7 +69,8 @@ def main(config):
     model = model_factory(config["model"], config["model_params"]).to(device)
 
     # Load the saved model weights.
-    model.load_state_dict(torch.load(config["model_weights_path"], map_location=device))
+    model_path = os.path.join(config["model_weights_path"])
+    model.load_state_dict(torch.load(model_path, map_location=device))
     print("[INFO] Model loaded successfully.")
 
     # Move model and data loader to device.
@@ -83,7 +95,7 @@ def main(config):
         )
         for idx, graph in enumerate(test_loader_iter):
             pred = model(graph)
-            loss = loss_fn(graph, pred, model)
+            loss, _ = loss_fn(graph, pred, model)
             loss_array[idx] = loss
 
             if config["tqdm"]:
