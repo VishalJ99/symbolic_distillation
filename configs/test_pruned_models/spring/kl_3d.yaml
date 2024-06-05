@@ -1,0 +1,17 @@
+output_dir: ../rds/hpc-work/test_runs/pruned_models/spring_3d/kl
+tqdm: false
+save_messages: true
+message_save_limit: 100000
+data_dir: ../rds/hpc-work/local_datasets/spring_3d
+test_batch_size: 1024
+model_weights_path: ../rds/hpc-work/train_runs/pruned_runs/spring_3d/kl/model_weights/best_model.pt
+model: vargnn
+model_params:
+  n_f: 8
+  msg_dim: 100
+  ndim: 3
+  hidden: 300
+  aggr: add
+loss: maeloss+klreg
+loss_params:
+  reg_weight: 1.0

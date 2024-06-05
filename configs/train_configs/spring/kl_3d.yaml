@@ -5,7 +5,7 @@ wandb_project: mphil_project
 save_messages: true
 tqdm: false
 debug: false
-data_dir: ../rds/hpc-work/local_datasets/charge_2d/spring_3d
+data_dir: ../rds/hpc-work/local_datasets/spring_3d
 prune_graphs: 99.99
 quick_test: false
 model_state_path: null
