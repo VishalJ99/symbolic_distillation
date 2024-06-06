@@ -73,7 +73,10 @@ class GNN(MessagePassing):
             # Calc most important message components using pysr edge models.
             important_msg_components = torch.tensor(
                 np.asarray(
-                    [model.predict(x) for model in self.symbolic_edge_models]
+                    [
+                        model.predict(x.cpu())
+                        for model in self.symbolic_edge_models
+                    ]
                 )
             ).T.to(x_i.device, x_i.dtype)
 
