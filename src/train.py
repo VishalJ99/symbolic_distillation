@@ -207,7 +207,6 @@ def main(config):
         if config["wandb"]:
             wandb.log({"avg_train_loss": avg_train_loss})
 
-
         # Validation phase
         total_val_loss = 0
         num_val_items = 0

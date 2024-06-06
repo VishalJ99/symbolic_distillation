@@ -16,8 +16,6 @@ machine.file*
 *.out
 run_job.sh
 terminal_logs
-<<<<<<< Updated upstream
-hall_of_fame*
-=======
 *.sh
->>>>>>> Stashed changes
+test_runs*
+hall_of_fame*

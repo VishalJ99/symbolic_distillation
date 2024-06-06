@@ -1,5 +1,7 @@
 import numpy as np
 
+# TODO: Generalise these transformations functions.
+
 
 def percentile_sum(x):
     x = x.ravel()

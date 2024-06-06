@@ -4,7 +4,6 @@ import json
 import yaml
 from accelerate import Accelerator
 import torch
-import numpy as np
 from torch_geometric.loader import DataLoader
 from torch.utils.data import Subset
 
@@ -17,11 +16,13 @@ from utils import (
     model_factory,
     loss_factory,
     get_node_message_info_df,
+    calc_summary_stats,
 )
 
 
 def main(config):
     output_dir = config["output_dir"]
+    make_dir(output_dir)
 
     if config["save_messages"]:
         messages_dir_path = os.path.join(output_dir, "test_messages")
@@ -114,15 +115,13 @@ def main(config):
 
     # Save test results to a CSV.
     loss_np = loss_array.numpy()  # Convert to numpy for easier manipulation
-    stats = {
-        "Mean": float(np.mean(loss_np)),
-        "Standard Deviation": float(np.std(loss_np)),
-        "Median": float(np.median(loss_np)),
-        "Lower Quartile": float(np.percentile(loss_np, 25)),
-        "Upper Quartile": float(np.percentile(loss_np, 75)),
-        "N": int(len(test_loader)),
-        "Batch Size": int(config["test_batch_size"]),
-    }
+    stats = calc_summary_stats(loss_np)
+    stats.update(
+        {
+            "N": int(len(test_loader)),
+            "Batch Size": int(config["test_batch_size"]),
+        }
+    )
 
     # Print summary statistics.
     print("-" * 50)
@@ -133,11 +132,13 @@ def main(config):
 
     # Save test results to a CSV.
     test_results = os.path.join(output_dir, "test_results.json")
+    print(f"[INFO] Saving test results to {test_results}")
     with open(test_results, "w") as f:
         json.dump(stats, f)
 
     # Save test results and messages if required
     if config["save_messages"]:
+        print("[INFO] Saving node messages...")
         df = pd.concat(df_list)
         node_message_save_path = os.path.join(
             messages_dir_path, "node_messages.csv"
@@ -158,3 +159,4 @@ if __name__ == "__main__":
         config = yaml.safe_load(f)
 
     main(config)
+    print("[SUCCESS] Test complete.")
