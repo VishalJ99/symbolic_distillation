@@ -9,6 +9,7 @@ from transforms import RandomTranslate
 from torch_geometric.data import Data
 from torch_geometric.nn import MessagePassing
 import pandas as pd
+from force_funcs import spring_force, r1_force, r2_force, charge_force
 
 
 def get_edge_index(sim_fname):
@@ -138,6 +139,17 @@ def model_factory(model, model_params):
     return model
 
 
+def force_factory(sim):
+    force_dict = {
+        "spring": spring_force,
+        "r1": r1_force,
+        "r2": r2_force,
+        "charge": charge_force,
+    }
+    force_fnc = force_dict[sim]
+    return force_fnc
+
+
 def get_node_message_info_df(graph: Data, model: MessagePassing, dim: int):
     s = graph.x[graph.edge_index[0]]  # sending nodes
     r = graph.x[graph.edge_index[1]]  # recieving nodes
@@ -166,8 +178,8 @@ def get_node_message_info_df(graph: Data, model: MessagePassing, dim: int):
 
     # Create columns for the distance between the nodes.
     # Useful for performing symbolic regression.
-    df["dx"] = df.x1 - df.x2
-    df["dy"] = df.y1 - df.y2
+    df["dx"] = df.x1 - df.x2  # dx21
+    df["dy"] = df.y1 - df.y2  # dy21
 
     if dim == 2:
         df["r"] = np.sqrt((df.dx) ** 2 + (df.dy) ** 2)

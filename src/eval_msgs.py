@@ -11,19 +11,22 @@ from plotting_utils import (
     linear_transformation_3d,
     out_linear_transformation_2d,
     out_linear_transformation_3d,
-    # force_dict,
 )
 import pickle as pkl
 from pysr import PySRRegressor
-from utils import calc_summary_stats
+from utils import calc_summary_stats, force_factory
 
 
-def main(input_csv, output_dir, eps=1e-2, standarise=True):
+def main(input_csv, output_dir, sim, eps=1e-2):
+    try:
+        # Load the dataframe from a CSV file.
+        df = pd.read_csv(input_csv)
+    except FileNotFoundError:
+        print(f"[ERROR] File {input_csv} not found.")
+        exit(1)
+
     # Ensure the output directory exists.
     os.makedirs(output_dir, exist_ok=True)
-
-    # Load the dataframe from a CSV file.
-    df = pd.read_csv(input_csv)
 
     # Determine dimension based on columns present.
     dim = 3 if "z1" in df.columns else 2
@@ -72,15 +75,10 @@ def main(input_csv, output_dir, eps=1e-2, standarise=True):
     plt.savefig(sparsity_plot_file)
     print(f"[INFO] Sparsity plot saved to {sparsity_plot_file}")
 
-    # Function to calculate forces. (Generalise)
-    # A small epsilon to avoid division by zero
-    force_fnc = (
-        lambda msg: -(msg.r + eps - 1).to_numpy()[:, None]
-        * np.array(msg[pos_cols])
-        / (msg.r + eps).to_numpy()[:, None]
-    )
+    # Function to calculate forces.
 
     # Calculate forces.
+    force_fnc = force_factory(sim)
     expected_forces = force_fnc(df)
 
     # Find the best linear transformation.
@@ -241,7 +239,15 @@ if __name__ == "__main__":
         "output_dir", type=str, help="Directory to save outputs"
     )
 
+    parser.add_argument("sim", type=str, help="Simulation name")
+    parser.add_argument(
+        "--eps",
+        type=float,
+        default=1e-2,
+        help="Epsilon value for force calculation",
+    )
+
     args = parser.parse_args()
 
-    main(args.input_csv, args.output_dir)
+    main(args.input_csv, args.output_dir, args.sim, args.eps)
     print("[SUCCESS] Message Evaluation Complete.")
