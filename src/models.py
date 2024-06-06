@@ -26,8 +26,12 @@ class GNN(MessagePassing):
         self.symbolic_edge_pkl_2 = symbolic_edge_pkl_2
 
         if symbolic_edge_pkl_2 and symbolic_edge_pkl_2:
-            self.edge_model_1 = PySRRegressor.from_file(symbolic_edge_pkl_1)
-            self.edge_model_2 = PySRRegressor.from_file(symbolic_edge_pkl_2)
+            self.edge_model_1 = PySRRegressor(verbosity=0).from_file(
+                symbolic_edge_pkl_1
+            )
+            self.edge_model_2 = PySRRegressor(verbosity=0).from_file(
+                symbolic_edge_pkl_2
+            )
 
         self.edge_model = Sequential(
             Linear(2 * n_f, hidden),
@@ -55,6 +59,26 @@ class GNN(MessagePassing):
         return self.propagate(edge_index, size=(x.size(0), x.size(0)), x=x)
 
     def message(self, x_i, x_j):
+        x_i[0] = torch.tensor(
+            [
+                0.25218818,
+                -1.8772506,
+                1.3057919,
+                -0.29978532,
+                0.12528333,
+                0.67594373,
+            ]
+        )
+        x_j[0] = torch.tensor(
+            [
+                0.732442,
+                0.23329465,
+                0.83307225,
+                -0.85980296,
+                -0.33164334,
+                0.24893135,
+            ]
+        )
         if self.symbolic_edge_pkl_1 and self.symbolic_edge_pkl_2:
             # Input to symbolic model is a dr_ij, r_ij, q_i, q_j, m_i, m_j.
             # This order must match order in X_cols defined in eval_msgs.py.
@@ -68,6 +92,7 @@ class GNN(MessagePassing):
             m_j = x_j[:, -1].unsqueeze(-1)
 
             x = torch.concatenate([dr_ij, r_ij, q_i, q_j, m_i, m_j], axis=1)
+
             m1 = torch.tensor(self.edge_model_1.predict(x))
             m2 = torch.tensor(self.edge_model_2.predict(x))
 
@@ -75,22 +100,15 @@ class GNN(MessagePassing):
             msg = torch.zeros((x_i.shape[0], self.msg_dim), device=x_i.device)
             msg[:, 57] = m1
             msg[:, 64] = m2
-
-            ic(m1[0], m2[0])
-            # print('First two symbolic msg comps
-            # :', msg[0, 57], msg[0, 64])
             x = torch.cat([x_i, x_j], dim=1)
-            msg_learned = self.edge_model(x)
-            ic(msg_learned[0, :])
-            print(
-                "First two learned msg components:",
-                msg_learned[0, 57],
-                msg_learned[0, 64],
-            )
+            msg = self.edge_model(x)
+            ic(msg[:, 57], msg[:, 64])
+            ic(m1, m2)
+
         else:
             x = torch.cat([x_i, x_j], dim=1)
             msg = self.edge_model(x)
-            print("First two learned msg components:", msg[0, :2])
+
         return msg
 
     def update(self, aggr_out, x=None):
