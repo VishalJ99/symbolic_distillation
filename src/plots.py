@@ -6,6 +6,7 @@ import os
 import imageio
 import pandas as pd
 import argparse
+from utils import force_factory
 from plotting_utils import (
     linear_transformation_2d,
     linear_transformation_3d,
@@ -14,18 +15,17 @@ from plotting_utils import (
 )
 
 
-def main(messages_over_time, output_dir, plot_sparsity, delete_frames):
+def main(
+    messages_over_time, output_dir, sim, plot_sparsity, delete_frames, eps=1e-2
+):
     # Initalise list to store filenames for frames to be used in GIF.
     frame_filenames = []
 
     # Loop over each node message dataframe in messages_over_time.
     for idx, df in enumerate(messages_over_time):
-        print(f'\r[INFO] Reading frame {idx}/{len(messages_over_time)}',end='')
+        print(f"\r[INFO] Reading frame {idx}/{len(messages_over_time)}", end="")
         # Set dim by checking if z is present in columns.
         dim = 3 if "z1" in df.columns else 2
-
-        # TODO: is this even needed as simulation.py already adds eps...
-        eps = 1e-2
 
         pos_cols = ["dx", "dy"]
 
@@ -71,25 +71,14 @@ def main(messages_over_time, output_dir, plot_sparsity, delete_frames):
             plt.text(15.5, 0.5, "...", fontsize=30)
 
         else:
-            # TODO: Generalise force fnc.
-            force_fnc = (
-                lambda msg: -(msg.r + eps - 1).to_numpy()[:, None]
-                * np.array(msg[pos_cols])
-                / (msg.r + eps).to_numpy()[:, None]
-            )
+            force_fnc = force_factory(sim)
+            # Calculate the expected forces, i.e. the 'labels'.
+            expected_forces = force_fnc(df, eps)
 
             # Plot force components.
             # Select the dim most important messages.
             most_important_idxs = np.argsort(msgs_std)[-dim:]
             msgs_to_compare = msgs_array[:, most_important_idxs]
-
-            # Standardise the messages.
-            msgs_to_compare = (
-                msgs_to_compare - np.average(msgs_to_compare, axis=0)
-            ) / np.std(msgs_to_compare, axis=0)
-
-            # Calculate the expected forces, i.e. the 'labels'.
-            expected_forces = force_fnc(df)
 
             # Find the best linear transformation force -> message.
             if dim == 2:
@@ -184,18 +173,27 @@ if __name__ == "__main__":
         "input_path", type=str, help="Input pkl file or directory of csvs"
     )
     parser.add_argument("output_dir", type=str, help="Output directory")
+    parser.add_argument("sim", type=str, help="Simulation type")
     parser.add_argument(
         "--plot_sparsity", action="store_true", help="Plot sparsity"
     )
     parser.add_argument(
         "--delete_frames", action="store_true", help="Delete frames"
     )
+    parser.add_argument(
+        "--eps",
+        type=float,
+        default=1e-2,
+        help="Epsilon for numerical stability",
+    )
     args = parser.parse_args()
 
     input_path = args.input_path
     output_dir = args.output_dir
+    sim = args.sim
     plot_sparsity = args.plot_sparsity
     delete_frames = args.delete_frames
+    eps = args.eps
 
     try:
         os.makedirs(output_dir)
@@ -219,4 +217,4 @@ if __name__ == "__main__":
 
     print(f"\n[INFO] Identified {len(messages_over_time)} frames.")
 
-    main(messages_over_time, output_dir, plot_sparsity, delete_frames)
+    main(messages_over_time, output_dir, sim, plot_sparsity, delete_frames, eps)
