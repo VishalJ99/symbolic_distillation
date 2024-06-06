@@ -194,3 +194,16 @@ def debug_logs(graph, pred, train_loss_components_dict, loss):
 
     print("Loss for Entire Batch:")
     print(loss.item())
+
+
+def calc_summary_stats(data):
+    summary_stats = {
+        "Mean": float(np.mean(data)),
+        "Standard Deviation": float(np.std(data)),
+        "Median": float(np.median(data)),
+        "Lower Quartile": float(np.percentile(data, 25)),
+        "Upper Quartile": float(np.percentile(data, 75)),
+        "Min": float(np.min(data)),
+        "Max": float(np.max(data)),
+    }
+    return summary_stats

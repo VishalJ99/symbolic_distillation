@@ -3,8 +3,8 @@
 import torch
 from torch_geometric.nn import MessagePassing
 from torch.nn import Sequential, Linear, ReLU
-from pysr import PySRRegressor
-from icecream import ic
+import pickle as pkl
+import numpy as np
 
 
 class GNN(MessagePassing):
@@ -15,23 +15,20 @@ class GNN(MessagePassing):
         ndim,
         hidden=300,
         aggr="add",
-        symbolic_edge_pkl_1=False,
-        symbolic_edge_pkl_2=False,
+        symbolic_edge_pkl_path=None,
     ):
         super(GNN, self).__init__(aggr=aggr)
         self.ndim = ndim
         self.msg_dim = msg_dim
 
-        self.symbolic_edge_pkl_1 = symbolic_edge_pkl_1
-        self.symbolic_edge_pkl_2 = symbolic_edge_pkl_2
+        self.symbolic_edge_pkl_path = symbolic_edge_pkl_path
 
-        if symbolic_edge_pkl_2 and symbolic_edge_pkl_2:
-            self.edge_model_1 = PySRRegressor(verbosity=0).from_file(
-                symbolic_edge_pkl_1
-            )
-            self.edge_model_2 = PySRRegressor(verbosity=0).from_file(
-                symbolic_edge_pkl_2
-            )
+        if symbolic_edge_pkl_path:
+            with open(symbolic_edge_pkl_path, "rb") as f:
+                symbolic_edge_pkl = pkl.load(f)
+
+            self.symbolic_edge_models = symbolic_edge_pkl["models"]
+            self.important_msg_indices = symbolic_edge_pkl["important_msg_idxs"]
 
         self.edge_model = Sequential(
             Linear(2 * n_f, hidden),
@@ -59,29 +56,9 @@ class GNN(MessagePassing):
         return self.propagate(edge_index, size=(x.size(0), x.size(0)), x=x)
 
     def message(self, x_i, x_j):
-        x_i[0] = torch.tensor(
-            [
-                0.25218818,
-                -1.8772506,
-                1.3057919,
-                -0.29978532,
-                0.12528333,
-                0.67594373,
-            ]
-        )
-        x_j[0] = torch.tensor(
-            [
-                0.732442,
-                0.23329465,
-                0.83307225,
-                -0.85980296,
-                -0.33164334,
-                0.24893135,
-            ]
-        )
-        if self.symbolic_edge_pkl_1 and self.symbolic_edge_pkl_2:
-            # Input to symbolic model is a dr_ij, r_ij, q_i, q_j, m_i, m_j.
-            # This order must match order in X_cols defined in eval_msgs.py.
+        if self.symbolic_edge_pkl_path:
+            # Construct input to pysr model: (dr_ij, r_ij, q_i, q_j, m_i, m_j).
+            # This order must match X_cols (defined in eval_msgs.py).
             dr_ij = x_i[:, : self.ndim] - x_j[:, : self.ndim]
             r_ij = torch.linalg.norm(dr_ij, axis=1).unsqueeze(-1)
 
@@ -93,17 +70,18 @@ class GNN(MessagePassing):
 
             x = torch.concatenate([dr_ij, r_ij, q_i, q_j, m_i, m_j], axis=1)
 
-            m1 = torch.tensor(self.edge_model_1.predict(x))
-            m2 = torch.tensor(self.edge_model_2.predict(x))
+            # Calc most important message components using pysr edge models.
+            important_msg_components = torch.tensor(
+                np.asarray(
+                    [model.predict(x) for model in self.symbolic_edge_models]
+                )
+            ).T.to(x_i.device, x_i.dtype)
 
-            # Pad msg with zeros to create a tensor of shape (N_edges, msg_dim).
-            msg = torch.zeros((x_i.shape[0], self.msg_dim), device=x_i.device)
-            msg[:, 57] = m1
-            msg[:, 64] = m2
-            x = torch.cat([x_i, x_j], dim=1)
-            msg = self.edge_model(x)
-            ic(msg[:, 57], msg[:, 64])
-            ic(m1, m2)
+            # Construct the full message.
+            msg = torch.zeros(
+                (x_i.shape[0], self.msg_dim), device=x_i.device, dtype=x_i.dtype
+            )
+            msg[:, self.important_msg_indices] = important_msg_components
 
         else:
             x = torch.cat([x_i, x_j], dim=1)
