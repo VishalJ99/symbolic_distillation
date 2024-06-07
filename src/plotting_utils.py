@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import linregress
 
 # TODO: Generalise these transformations functions.
 
@@ -68,3 +70,82 @@ def out_linear_transformation_3d(alpha, X):
 
     Y = np.asarray([lincomb1, lincomb2, lincomb3]).T
     return Y
+
+
+def make_sparsity_plot(
+    msgs_array, dim, top_n=15, cmap="gray_r", show_grid=True
+):
+    """Generates a sparsity plot for the most variable messages in a dataset.
+
+    Args:
+        msgs_array (np.ndarray): The source array from which to generate the
+        plot.
+        dim (int): The number of most significant features to select.
+        top_n (int, optional): Number of top features to display in the plot.
+        cmap (str, optional): The colormap for the plot.
+        show_grid (bool, optional): Flag to show grid lines on the plot.
+
+    Returns:
+        fig, ax: Matplotlib figure and axes objects.
+    """
+    # Standard deviation across messages
+    msgs_std = msgs_array.std(axis=0)
+    top_msgs_std = msgs_std[np.argsort(msgs_std)[::-1][None, :top_n]]
+    fig, ax = plt.subplots(1, 1)
+
+    ax.pcolormesh(
+        top_msgs_std,
+        cmap=cmap,
+        edgecolors="k",
+    )
+
+    # Write std under the plot.
+    for i, std in enumerate(top_msgs_std.squeeze()):
+        x_pos = i if top_msgs_std.shape[1] == 15 else i + 0.5
+        y_pos = -0.75 if top_msgs_std.shape[1] == 15 else -0.25
+
+        # Normalise stds by the sum of the stds to make them comparable.
+        std /= msgs_std.sum()
+        ax.text(
+            x_pos,
+            y_pos,
+            f"{std: .1e}",
+            ha="center",
+            va="center",
+            rotation=45,
+        )
+
+    plt.axis("off")
+    plt.grid(True)
+    ax.set_aspect("equal")
+    plt.text(15.5, 0.5, "...", fontsize=30)
+    return fig, ax
+
+
+def make_force_edge_msg_scatter(transformed_forces, most_important_msgs, dim=2):
+    fig, axes = plt.subplots(1, dim, figsize=(4 * dim, 4))
+    R2_stats = []
+    for i in range(dim):
+        # Fit a linear regression model to get the R^2 value.
+        slope, intercept, r_value, p_value, stderr = linregress(
+            transformed_forces[:, i], most_important_msgs[:, i]
+        )
+
+        R2 = r_value**2
+        R2_stats.append(R2)
+
+        # Scatter plot of transformed forces vs. message components.
+        ax = axes[i] if dim > 1 else axes
+        ax.scatter(
+            transformed_forces[:, i],
+            most_important_msgs[:, i],
+            alpha=0.1,
+            s=0.1,
+            c="black",
+        )
+        ax.set_xlabel("Transformed Forces")
+        ax.set_ylabel(f"Message Component {i+1}")
+        ax.title.set_text(f"Component {i+1} R^2: {R2: .2f}")
+
+    plt.tight_layout()
+    return fig, axes, R2_stats

@@ -4,13 +4,14 @@ import pandas as pd
 import argparse
 import os
 from scipy.optimize import minimize
-from scipy.stats import linregress
 import json
 from plotting_utils import (
     linear_transformation_2d,
     linear_transformation_3d,
     out_linear_transformation_2d,
     out_linear_transformation_3d,
+    make_sparsity_plot,
+    make_force_edge_msg_scatter,
 )
 import pickle as pkl
 from pysr import PySRRegressor
@@ -32,51 +33,24 @@ def main(input_csv, output_dir, sim, eps=1e-2):
     dim = 3 if "z1" in df.columns else 2
     pos_cols = ["dx", "dy"] + (["dz"] if dim == 3 else [])
 
-    # Get the message columns.
+    # Fetch the message array.
     msg_columns = [col for col in df.columns if "e" in col]
     msgs_array = np.array(df[msg_columns])
 
-    # Fetch the dim most significant features.
-    msgs_std = msgs_array.std(axis=0)
-    most_important_msgs_idxs = np.argsort(msgs_std)[-dim:]
-    most_important_msgs = msgs_array[:, most_important_msgs_idxs]
-
-    # Generate Sparsity plot.
-    top_15_msgs_std = msgs_std[np.argsort(msgs_std)[::-1][None, :15]]
-    fig, ax = plt.subplots(1, 1)
-
-    ax.pcolormesh(
-        top_15_msgs_std,
-        cmap="gray_r",
-        edgecolors="k",
-    )
-
-    # Write relative std under the plot.
-    for i, std in enumerate(top_15_msgs_std.squeeze()):
-        x_pos = i if top_15_msgs_std.shape[1] == 15 else i + 0.5
-        y_pos = -0.95 if top_15_msgs_std.shape[1] == 15 else -0.45
-        std /= msgs_std.sum()
-        ax.text(
-            x_pos,
-            y_pos,
-            f"{std: .1e}",
-            ha="center",
-            va="center",
-            rotation=45,
-        )
-
-    plt.axis("off")
-    plt.grid(True)
-    ax.set_aspect("equal")
-    plt.text(15.5, 0.5, "...", fontsize=30)
+    # Make sparsity plot.
+    fig, ax = make_sparsity_plot(msgs_array=msgs_array, dim=dim, top_n=15)
 
     # Save the sparsity plot.
     sparsity_plot_file = os.path.join(output_dir, "sparsity_plot.png")
-    plt.savefig(sparsity_plot_file)
+    fig.savefig(sparsity_plot_file)
+    plt.close(fig)  # Close the figure to free up memory
     print(f"[INFO] Sparsity plot saved to {sparsity_plot_file}")
 
     # Function to calculate forces.
-
+    # Indices of the most significant messages
+    msgs_std = msgs_array.std(axis=0)
+    most_important_msgs_idxs = np.argsort(msgs_std)[-dim:]
+    most_important_msgs = msgs_array[:, most_important_msgs_idxs]
     # Calculate forces.
     force_fnc = force_factory(sim)
     expected_forces = force_fnc(df)
@@ -112,34 +86,17 @@ def main(input_csv, output_dir, sim, eps=1e-2):
         )
 
     # Generate message vs transformed force plot.
-    fig, axes = plt.subplots(1, dim, figsize=(4 * dim, 4))
-    R2_stats = []
-    for i in range(dim):
-        ax = axes[i] if dim > 1 else axes
-        ax.scatter(
-            transformed_forces[:, i],
-            most_important_msgs[:, i],
-            alpha=0.1,
-            s=0.1,
-            c="black",
-        )
-        ax.set_xlabel("Transformed Forces")
-        ax.set_ylabel(f"Message Component {i+1}")
+    fig, axes, R2_stats = make_force_edge_msg_scatter(
+        transformed_forces, most_important_msgs, dim
+    )
 
-        # Fit a linear regression model.
-        slope, intercept, r_value, p_value, stderr = linregress(
-            transformed_forces[:, i], most_important_msgs[:, i]
-        )
-
-        R2 = r_value**2
-        R2_stats.append(R2)
-        ax.title.set_text(f"Component {i+1} R^2: {R2: .2f}")
-
-    plt.tight_layout()
-    plot_file = os.path.join(output_dir, "messages_vs_transformed_force.png")
-    plt.savefig(plot_file)
-    plt.close()
-    print(f"[INFO] Message vs Force plot saved to {plot_file}")
+    fig.tight_layout()
+    force_edge_scatter_file = os.path.join(
+        output_dir, "messages_vs_transformed_force.png"
+    )
+    fig.savefig(force_edge_scatter_file)
+    plt.close(fig)
+    print(f"[INFO] Message vs Force plot saved to {force_edge_scatter_file}")
 
     # Save R2 statistics.
     R2_file = os.path.join(output_dir, "R2_stats.txt")

@@ -7,11 +7,14 @@ import imageio
 import pandas as pd
 import argparse
 from utils import force_factory
+
 from plotting_utils import (
     linear_transformation_2d,
     linear_transformation_3d,
     out_linear_transformation_2d,
     out_linear_transformation_3d,
+    make_sparsity_plot,
+    make_force_edge_msg_scatter,
 )
 
 
@@ -38,61 +41,34 @@ def main(
         # Fetch the message array.
         msgs_array = np.array(df[msg_columns])
 
-        # Select only top dim features by standard deviation.
-        msgs_std = msgs_array.std(axis=0)
-
         if plot_sparsity:
             # Visualise the sparsity via the std of the edge message components.
-            top_15_msgs_std = msgs_std[np.argsort(msgs_std)[::-1][None, :15]]
-            fig, ax = plt.subplots(1, 1)
-
-            ax.pcolormesh(
-                top_15_msgs_std,
-                cmap="gray_r",
-                edgecolors="k",
+            fig, axes = make_sparsity_plot(
+                msgs_array=msgs_array, dim=dim, top_n=15
             )
-            # Write std under the plot.
-            for i, std in enumerate(top_15_msgs_std.squeeze()):
-                x_pos = i if top_15_msgs_std.shape[1] == 15 else i + 0.5
-                y_pos = -0.75 if top_15_msgs_std.shape[1] == 15 else -0.25
-                ax.text(
-                    x_pos,
-                    y_pos,
-                    f"{std: .2e}",
-                    ha="center",
-                    va="center",
-                    rotation=45,
-                )
-
-            fig.suptitle("Frame %d" % idx)
-            plt.axis("off")
-            plt.grid(True)
-            ax.set_aspect("equal")
-            plt.text(15.5, 0.5, "...", fontsize=30)
 
         else:
             force_fnc = force_factory(sim)
             # Calculate the expected forces, i.e. the 'labels'.
             expected_forces = force_fnc(df, eps)
+            msgs_std = msgs_array.std(axis=0)
+            most_important_msgs_idxs = np.argsort(msgs_std)[-dim:]
+            most_important_msgs = msgs_array[:, most_important_msgs_idxs]
 
-            # Plot force components.
-            # Select the dim most important messages.
-            most_important_idxs = np.argsort(msgs_std)[-dim:]
-            msgs_to_compare = msgs_array[:, most_important_idxs]
-
+            # TODO: Generalise these transformations functions.
             # Find the best linear transformation force -> message.
             if dim == 2:
                 min_result = minimize(
                     linear_transformation_2d,
                     x0=np.ones(dim**2 + dim),
-                    args=(expected_forces, msgs_to_compare),
+                    args=(expected_forces, most_important_msgs),
                     method="Powell",
                 )
             if dim == 3:
                 min_result = minimize(
                     linear_transformation_3d,
                     x0=np.ones(dim**2 + dim),
-                    args=(expected_forces, msgs_to_compare),
+                    args=(expected_forces, most_important_msgs),
                     method="Powell",
                 )
 
@@ -110,45 +86,23 @@ def main(
                     alpha, expected_forces
                 )
 
-            for i in range(dim):
-                ax[i].scatter(
-                    transformed_forces[:, i],
-                    msgs_to_compare[:, i],
-                    alpha=0.1,
-                    s=0.1,
-                    color="k",
-                )
-                ax[i].set_xlabel("Linear Transformation of True Forces")
-                ax[i].set_ylabel("Message Element %d" % (i + 1))
-                fig.suptitle(f"Frame {idx}")
-                xlim = np.array(
-                    [
-                        np.percentile(transformed_forces[:, i], q)
-                        for q in [10, 90]
-                    ]
-                )
-                ylim = np.array(
-                    [np.percentile(msgs_to_compare[:, i], q) for q in [10, 90]]
-                )
+            # Plot transformed force components against the edge components.
+            fig, ax, R2_stats = make_force_edge_msg_scatter(
+                transformed_forces, most_important_msgs, dim
+            )
 
-                xlim[0], xlim[1] = (
-                    xlim[0] - (xlim[1] - xlim[0]) * 0.05,
-                    xlim[1] + (xlim[1] - xlim[0]) * 0.05,
-                )
-                ylim[0], ylim[1] = (
-                    ylim[0] - (ylim[1] - ylim[0]) * 0.05,
-                    ylim[1] + (ylim[1] - ylim[0]) * 0.05,
-                )
+        fig.suptitle("Frame %d" % idx)
 
-                ax[i].set_xlim(xlim)
-                ax[i].set_ylim(ylim)
-                fig.suptitle("Frame %d" % idx)
-                plt.tight_layout()
+        # Determine the file name prefix based on plot_sparsity flag
+        filename_prefix = "sparsity" if plot_sparsity else "force"
 
-        # Save the plot to a file.
+        # Save the frame to a file.
+        filename = os.path.join(
+            output_dir, f"{filename_prefix}_frame_{idx}.png"
+        )
         filename = os.path.join(output_dir, f"frame_{idx}.png")
         fig.savefig(filename)  # Save the plot to a file
-        plt.close()
+        plt.close("all")
         frame_filenames.append(filename)
 
     # Create the GIF.
@@ -159,7 +113,6 @@ def main(
         for filename in frame_filenames:
             frame = imageio.imread(filename)
             writer.append_data(frame)
-        print("[INFO] GIF created.")
 
     if delete_frames:
         print("[INFO] Deleting frames...")
@@ -218,3 +171,4 @@ if __name__ == "__main__":
     print(f"\n[INFO] Identified {len(messages_over_time)} frames.")
 
     main(messages_over_time, output_dir, sim, plot_sparsity, delete_frames, eps)
+    print(f"[SUCCESS] Gif created at {output_dir}")
