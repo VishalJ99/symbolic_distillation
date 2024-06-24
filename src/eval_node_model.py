@@ -11,7 +11,6 @@ from icecream import ic
 
 
 def main(input_csv_x, input_csv_y, nbody, output_dir):
-
     # Load the edge features and node output CSV files.
     df_x = pd.read_csv(input_csv_x)
     df_y = pd.read_csv(input_csv_y)
@@ -26,6 +25,12 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
     target_node_feat_cols += ["q1", "m1"]
     target_node_array = np.array(df_x[target_node_feat_cols])
 
+    # Fetch the sending node features.
+    src_node_feat_cols = ["x2", "y2"] + (["z2"] if dim == 3 else [])
+    src_node_feat_cols += ["vx2", "vy2"] + (["vz2"] if dim == 3 else [])
+    src_node_feat_cols += ["q2", "m2"]
+    src_node_array = np.array(df_x[src_node_feat_cols])
+    
     # Fetch the edge message array.
     msg_columns = [col for col in df_x.columns if "e" in col]
     msgs_array = np.array(df_x[msg_columns])
@@ -37,114 +42,106 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
 
     # Aggregate the significant edge messages across all sending nodes.
     i = 0
-    X = np.zeros((df_y.shape[0], 3*dim+2))
-    for idx, row in enumerate(target_node_array[:10]):
+
+    # Initialise X - input to the symbolic regression model.
+    # x1, y1, (z1), vx1, vy1, (vz1), q1, m1, e...
+    # TODO: Find a way to vectorise this.
+    X = np.zeros((df_y.shape[0], 2 * dim + 102))
+    print('[INFO] Aggregating edge messages for each target node')
+    i = 0
+
+    # Loop over src node arrays.
+    # (same as dst nodes, just looping over them in a diff order).
+    for row in src_node_array:
         dst_node = row
-        # Check if dst_node in the first column of x already
-        if ic(np.any(ic(np.all(X[:, :2*dim+2] == dst_node, axis=1)))):
-            print(f"Node {idx}: {dst_node} already in X, skipping...")
+        # Check if dst_node in X.
+        if np.any(np.all(X[:, : 2 * dim + 2] == dst_node, axis=1)):
             continue
+
         # Find all row idxs with the same target node.
-        target_node_idxs = np.where(np.all(target_node_array == dst_node, axis=1))
+        target_node_idxs = np.where(
+            np.all(target_node_array == dst_node, axis=1)
+        )
 
         # Get all edge messages for the target node.
-        target_node_msgs = most_important_msgs[target_node_idxs]
+        target_node_msgs = msgs_array[target_node_idxs]
+
         # Aggregate the edge messages via sum.
         agg_msg = np.sum(target_node_msgs, axis=0)
-        x_el = np.concatenate([dst_node, agg_msg])
-        X[idx] = x_el
+
+        # Add the aggregated message and node features to X.
+        X[i] = np.concatenate([dst_node, agg_msg])
+        i+=1
 
     # Fit a symbolic regression model for each component.
     fig, ax = plt.subplots(ncols=dim)
 
-    nn_a_symbolic_a_diff_dict = {}
-    node_model_states = []
+    # Labels are the instantaneous accelerations.
+    Y = df_y[accel_cols].to_numpy()
+
+    ic(X, Y)
+    exit(1)
+    # Random Sample 1000 points for faster fitting.
+    train_idxs = np.random.choice(X.shape[0], 1000, replace=False)
+
+    # Use remaining points for testing.
+    test_idxs = np.setdiff1d(np.arange(X.shape[0]), train_idxs)
+
+    X_train, X_test = X[train_idxs], X[test_idxs]
+    Y_train, Y_test = Y[train_idxs], Y[test_idxs]
+
+    node_model = PySRRegressor(
+        populations=100,
+        model_selection="best",
+        elementwise_loss="L1DistLoss()",
+        niterations=100,
+        binary_operators=["+", "-", "*", "/"],
+    )
+
+    node_model.fit(X_train, Y_train)
+    node_pred = node_model.predict(X_test)
 
     for i in range(dim):
-        # Get node features, acceleration and important messages.
-        X = most_important_msgs
-        # Reshape X to put all messages for each node in a single row.
-        X = X.reshape(X.shape[0]//(nbody-1), X.shape[1]*(nbody-1))
-        # Concatenate the node features with the important messages.
-        feature_cols = ['q1', 'q2', 'm1', 'm2']
-        node_feature_array = df_x[feature_cols].to_numpy()
-
-        # Find all sending edges for a given node.
-        
-        
-        # Note duplicate entries for the sending node features 
-        # TODO remove duplicate entries.
-        node_feature_array = node_feature_array.reshape(node_feature_array.shape[0]//(nbody-1), node_feature_array.shape[1]*(nbody-1))
-        # Drop duplicate columns, need first 4 to get source node features, can drop it from the rest.
-        first_four_cols = node_feature_array[:, :3]
-        every_other_starting_fifth = node_feature_array[:, 3::2]
-        # Combine the two selections
-        final_node_feature_array = np.hstack((first_four_cols, every_other_starting_fifth))        
-
-        X = np.concatenate([X, final_node_feature_array], axis=1)
-        # Labels are the ith component of net acceleration for each node.
-        Y = df_y[accel_cols].to_numpy()[:, i]
-
-        # Random Sample 1000 points for faster fitting.
-        train_idxs = np.random.choice(X.shape[0], 1000, replace=False)
-
-        # Use remaining points for testing.
-        test_idxs = np.setdiff1d(np.arange(X.shape[0]), train_idxs)
-
-        X_train, X_test = X[train_idxs], X[test_idxs]
-        Y_train, Y_test = Y[train_idxs], Y[test_idxs]
-        
-        node_model = PySRRegressor(
-            populations=50,
-            model_selection="best",
-            elementwise_loss="L1DistLoss()",
-            niterations=50,
-            binary_operators=["+", "-", "*", "/"],
-        )
-
-        node_model.fit(X_train, Y_train)
-        node_pred = node_model.predict(X_test)
-        ic(X_train.shape, X_test.shape, Y_train.shape, Y_test.shape)
-        ic(node_pred.shape)
-        # Calculate the diff statistics between the true and symbolic messages.
-        accel_diff = node_pred - Y_test
-
-        nn_a_symbolic_a_diff_dict[i + 1] = calc_summary_stats(accel_diff)
-
         # Create a scatter plot of the true vs predicted accels.
-        ax[i].scatter(Y_test, node_pred, alpha=0.1, s=0.1, c="black")
+        ax[i].scatter(Y_test[:, i], node_pred[:, i], alpha=0.1, s=0.1, c="black")
         ax[i].set_xlabel("True Acceleration")
         ax[i].set_ylabel("Predicted Acceleration")
 
-        # Move model state pkl to output directory.
-        node_model_state_src = os.path.join(
-            os.getcwd(), node_model.equation_file_[:-3] + "pkl"
-        )
-
-        with open(node_model_state_src, "rb") as f:
-            node_model_state = pkl.load(f)
-            node_model_states.append(node_model_state)
-
-        os.remove(os.path.join(os.getcwd(), node_model.equation_file_))
+        os.remove(os.path.join(os.getcwd(), node_model.equation_file_ + f'.out{i+1}'))
 
         os.remove(
-            os.path.join(os.getcwd(), node_model.equation_file_ + ".bkup")
+            os.path.join(os.getcwd(), node_model.equation_file_ + f'.out{i+1}' + ".bkup")
         )
-        os.remove(
-            os.path.join(os.getcwd(), node_model.equation_file_[:-3] + "pkl")
-        )
+
+    # Save the plot to the output directory.
     a_plot_file = os.path.join(output_dir, "nn_a_vs_symbolic.png")
-
-    plt.savefig(a_plot_file)
+    plt.savefig(a_plot_file, dpi=300, bbox_inches="tight")
     plt.close()
+    print(f"[INFO] Saved NN accel vs symbolic accel plot to {a_plot_file}")
+
+    # Calculate the diff statistics between the true and symbolic messages.
+    accel_diff = node_pred - Y_test
+
+    summary_stats = calc_summary_stats(accel_diff)
+
+    a_diff_json_file = os.path.join(output_dir, "nn_a_symbolic_a_diff.json")
+
+    with open(a_diff_json_file, "w") as f:
+        f.write(json.dumps(summary_stats))
+        print(
+            "[INFO] NN accel symbolic accel difference saved to "
+            f"{output_dir}/nn_a_symbolic_a_diff.json"
+        )
+
+    # Move model state pkl to output directory.
+    node_model_state_src = os.path.join(
+        os.getcwd(), node_model.equation_file_[:-3] + "pkl"
+    )
+    with open(node_model_state_src, "rb") as f:
+        node_model_state = pkl.load(f)
 
     symbolic_node_dict = {
-        "models": node_model_states,
-        "important_msg_idxs": most_important_msgs_idxs.tolist(),
-    }
-
-    symbolic_node_dict = {
-        "models": node_model_states,
+        "model": node_model_state,
         "important_msg_idxs": most_important_msgs_idxs.tolist(),
     }
 
@@ -154,15 +151,9 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
             f"[INFO] Symbolic node model states saved to "
             f"{output_dir}/symbolic_node.pkl"
         )
-
-    a_diff_json_file = os.path.join(output_dir, "nn_a_symbolic_a_diff.json")
-
-    with open(a_diff_json_file, "w") as f:
-        f.write(json.dumps(nn_a_symbolic_a_diff_dict))
-        print(
-            "[INFO] NN accel symbolic accel difference saved to "
-            f"{output_dir}/nn_a_symbolic_a_diff.json"
-        )
+    os.remove(
+        os.path.join(os.getcwd(), node_model.equation_file_[:-3] + "pkl")
+    )
 
 
 if __name__ == "__main__":
@@ -173,11 +164,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "input_csv_x", type=str, help="Path to the edge message CSV file"
     )
-    
+
     parser.add_argument(
         "input_csv_y", type=str, help="Path to the node message CSV file"
     )
-    
+
     parser.add_argument(
         "nbody", type=int, help="Number of bodies in the simulation"
     )
