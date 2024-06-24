@@ -30,7 +30,7 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
     src_node_feat_cols += ["vx2", "vy2"] + (["vz2"] if dim == 3 else [])
     src_node_feat_cols += ["q2", "m2"]
     src_node_array = np.array(df_x[src_node_feat_cols])
-    
+
     # Fetch the edge message array.
     msg_columns = [col for col in df_x.columns if "e" in col]
     msgs_array = np.array(df_x[msg_columns])
@@ -46,8 +46,8 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
     # Initialise X - input to the symbolic regression model.
     # x1, y1, (z1), vx1, vy1, (vz1), q1, m1, e...
     # TODO: Find a way to vectorise this.
-    X = np.zeros((df_y.shape[0], 2 * dim + 102))
-    print('[INFO] Aggregating edge messages for each target node')
+    X = np.zeros((df_y.shape[0], 3 * dim + 2))
+    print("[INFO] Aggregating edge messages for each target node")
     i = 0
 
     # Loop over src node arrays.
@@ -64,14 +64,14 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
         )
 
         # Get all edge messages for the target node.
-        target_node_msgs = msgs_array[target_node_idxs]
+        target_node_msgs = most_important_msgs[target_node_idxs]
 
         # Aggregate the edge messages via sum.
         agg_msg = np.sum(target_node_msgs, axis=0)
 
         # Add the aggregated message and node features to X.
         X[i] = np.concatenate([dst_node, agg_msg])
-        i+=1
+        i += 1
 
     # Fit a symbolic regression model for each component.
     fig, ax = plt.subplots(ncols=dim)
@@ -80,6 +80,32 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
     Y = df_y[accel_cols].to_numpy()
 
     ic(X, Y)
+
+    # Create synthetic keys for sorting.
+    df_x["src_key"] = df_x[src_node_feat_cols].apply(
+        lambda row: "_".join(row.values.astype(str)), axis=1
+    )
+
+    # # Aggregate the significant edge messages across all sending nodes using groupby and agg.
+    most_important_msg_columns = [
+        msg_columns[i] for i in most_important_msgs_idxs
+    ]
+    agg_dict = {col: "sum" for col in most_important_msg_columns}
+    grouped_df = df_x.groupby(target_node_feat_cols).agg(agg_dict).reset_index()
+
+    # Add synthetic key to grouped_df for sorting.
+    grouped_df["target_key"] = grouped_df[target_node_feat_cols].apply(
+        lambda row: "_".join(row.values.astype(str)), axis=1
+    )
+
+    # Get the order of src_keys in df_x and use it to sort grouped_df.
+    order = pd.Index(df_x["src_key"].unique())
+    grouped_df = grouped_df.set_index("target_key").reindex(order, fill_value=0)
+
+    # Drop the synthetic keys before further processing.
+    # grouped_df.drop(columns='target_key', inplace=True)
+    X2 = grouped_df.to_numpy()
+    assert (X2 == X).all(), "X and X2 are not equal"
     exit(1)
     # Random Sample 1000 points for faster fitting.
     train_idxs = np.random.choice(X.shape[0], 1000, replace=False)
@@ -103,14 +129,20 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
 
     for i in range(dim):
         # Create a scatter plot of the true vs predicted accels.
-        ax[i].scatter(Y_test[:, i], node_pred[:, i], alpha=0.1, s=0.1, c="black")
+        ax[i].scatter(
+            Y_test[:, i], node_pred[:, i], alpha=0.1, s=0.1, c="black"
+        )
         ax[i].set_xlabel("True Acceleration")
         ax[i].set_ylabel("Predicted Acceleration")
 
-        os.remove(os.path.join(os.getcwd(), node_model.equation_file_ + f'.out{i+1}'))
+        os.remove(
+            os.path.join(os.getcwd(), node_model.equation_file_ + f".out{i+1}")
+        )
 
         os.remove(
-            os.path.join(os.getcwd(), node_model.equation_file_ + f'.out{i+1}' + ".bkup")
+            os.path.join(
+                os.getcwd(), node_model.equation_file_ + f".out{i+1}" + ".bkup"
+            )
         )
 
     # Save the plot to the output directory.
@@ -151,9 +183,7 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
             f"[INFO] Symbolic node model states saved to "
             f"{output_dir}/symbolic_node.pkl"
         )
-    os.remove(
-        os.path.join(os.getcwd(), node_model.equation_file_[:-3] + "pkl")
-    )
+    os.remove(os.path.join(os.getcwd(), node_model.equation_file_[:-3] + "pkl"))
 
 
 if __name__ == "__main__":
