@@ -17,7 +17,7 @@ from utils import (
     transforms_factory,
     model_factory,
     loss_factory,
-    get_node_message_info_df,
+    get_node_message_info_dfs,
     debug_logs,
 )
 
@@ -270,7 +270,7 @@ def main(config):
             for graph in pbar:
                 # Only record 10k messages per epoch to avoid large file sizes.
                 while msgs_recorded < 10000:
-                    df = get_node_message_info_df(
+                    df, _ = get_node_message_info_dfs(
                         graph, model, dim=(graph.x.shape[1] - 2) // 2
                     )
                     msgs_recorded += len(df)

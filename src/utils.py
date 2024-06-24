@@ -150,45 +150,60 @@ def force_factory(sim):
     return force_fnc
 
 
-def get_node_message_info_df(graph: Data, model: MessagePassing, dim: int):
+def get_node_message_info_dfs(graph: Data, model: MessagePassing, dim: int):
+    # Get node features.
     s = graph.x[graph.edge_index[0]]  # sending nodes
-    r = graph.x[graph.edge_index[1]]  # recieving nodes
-    msg = model.message(s, r)
+    r = graph.x[graph.edge_index[1]]  # receiving nodes
 
-    all_info = torch.cat((s, r, msg), dim=1)
+    # Calculate the edge messages.
+    msg = model.message(r, s)
+
+    # Calculate the predicted accelerations.
+    pred = model(graph)
+
+    # Concatenate the node features and messages for each edge.
+    all_x_info = torch.cat((r, s, msg), dim=1)
 
     # Add node feature columns.
     if dim == 2:
-        columns = [
+        x_columns = [
             elem % (k)
             for k in range(1, 3)
             for elem in "x%d y%d vx%d vy%d q%d m%d".split(" ")
         ]
     elif dim == 3:
-        columns = [
+        x_columns = [
             elem % (k)
             for k in range(1, 3)
             for elem in "x%d y%d z%d vx%d vy%d vz%d q%d m%d".split(" ")
         ]
 
     # Add the message columns.
-    columns += ["e%d" % (k,) for k in range(msg.shape[-1])]
+    x_columns += ["e%d" % (k,) for k in range(msg.shape[-1])]
 
-    df = pd.DataFrame(data=all_info.cpu().detach().numpy(), columns=columns)
+    # Add the label columns.
+    y_columns = ["a%d" % (k,) for k in range(1, pred.shape[-1]+1)]
 
-    # Create columns for the distance between the nodes.
-    # Useful for performing symbolic regression.
-    df["dx"] = df.x1 - df.x2  # dx21
-    df["dy"] = df.y1 - df.y2  # dy21
+    # Save dataframe containing all edge information.
+    df_x = pd.DataFrame(data=all_x_info.cpu().detach().numpy(),
+                        columns=x_columns)
+
+    # Save dataframe containing the output of the node models.
+    df_y = pd.DataFrame(data=pred.cpu().detach().numpy(), columns=y_columns)
+
+    # Add rel dist between the nodes as extra columns for symbolic regression.
+    # (Note: points towards the recieving node)
+    df_x["dx"] = df_x.x1 - df_x.x2
+    df_x["dy"] = df_x.y1 - df_x.y2
 
     if dim == 2:
-        df["r"] = np.sqrt((df.dx) ** 2 + (df.dy) ** 2)
+        df_x["r"] = np.sqrt((df_x.dx) ** 2 + (df_x.dy) ** 2)
 
     elif dim == 3:
-        df["dz"] = df.z1 - df.z2
-        df["r"] = np.sqrt((df.dx) ** 2 + (df.dy) ** 2 + (df.dz) ** 2)
+        df_x["dz"] = df_x.z1 - df_x.z2
+        df_x["r"] = np.sqrt((df_x.dx) ** 2 + (df_x.dy) ** 2 + (df_x.dz) ** 2)
 
-    return df
+    return df_x, df_y
 
 
 def debug_logs(graph, pred, train_loss_components_dict, loss):

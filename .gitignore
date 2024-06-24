@@ -19,3 +19,9 @@ terminal_logs
 *.sh
 test_runs*
 hall_of_fame*
+*csv
+*tex
+report*
+
+!report/figs
+!report/main.tex

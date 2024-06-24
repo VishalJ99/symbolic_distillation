@@ -46,7 +46,6 @@ def main(input_csv, output_dir, sim, eps=1e-2):
     plt.close(fig)  # Close the figure to free up memory
     print(f"[INFO] Sparsity plot saved to {sparsity_plot_file}")
 
-    # Function to calculate forces.
     # Indices of the most significant messages
     msgs_std = msgs_array.std(axis=0)
     most_important_msgs_idxs = np.argsort(msgs_std)[-dim:]
@@ -105,7 +104,8 @@ def main(input_csv, output_dir, sim, eps=1e-2):
         print(f"[INFO] R2 statistics saved to {R2_file}")
 
     # Fit a symbolic regression model for each component
-    X_cols = pos_cols + ["r", "q1", "q2", "m1", "m2"]
+    X_cols = pos_cols + ["r", "m1", "m2"]
+
     fig, ax = plt.subplots(ncols=dim)
     true_msg_symbolic_msg_diff_dict = {}
     model_states = []
@@ -114,7 +114,7 @@ def main(input_csv, output_dir, sim, eps=1e-2):
         Y = most_important_msgs[:, i]
 
         # Random Sample 1000 points for faster fitting.
-        train_idxs = np.random.choice(X.shape[0], 1000, replace=False)
+        train_idxs = np.random.choice(X.shape[0], 5000, replace=False)
 
         # Use remaining points for testing.
         test_idxs = np.setdiff1d(np.arange(X.shape[0]), train_idxs)
@@ -123,37 +123,38 @@ def main(input_csv, output_dir, sim, eps=1e-2):
         Y_train, Y_test = Y[train_idxs], Y[test_idxs]
 
         # TODO: Make this configurable via cli / config file.
-        model = PySRRegressor(
+        edge_model = PySRRegressor(
             populations=50,
             model_selection="best",
+            elementwise_loss="L1DistLoss()",
             niterations=50,
             binary_operators=["+", "-", "*", "/"],
         )
-
-        model.fit(X_train, Y_train)
-        pred = model.predict(X_test)
+        
+        edge_model.fit(X_train, Y_train)
+        edge_pred = edge_model.predict(X_test)
 
         # Calculate the diff statistics between the true and symbolic messages.
-        msg_diff = pred - Y_test
+        msg_diff = edge_pred - Y_test
         true_msg_symbolic_msg_diff_dict[i + 1] = calc_summary_stats(msg_diff)
 
         # Visualise the correlation between true and symbolic messages.
-        ax[i].scatter(Y_test, pred, alpha=0.1, s=0.1, c="black")
+        ax[i].scatter(Y_test, edge_pred, alpha=0.1, s=0.1, c="black")
         ax[i].set_xlabel("True Edge Messages")
         ax[i].set_ylabel("Predicted Edge Messages")
 
         # Move model state pkl to output directory.
         model_state_src = os.path.join(
-            os.getcwd(), model.equation_file_[:-3] + "pkl"
+            os.getcwd(), edge_model.equation_file_[:-3] + "pkl"
         )
         with open(model_state_src, "rb") as f:
             model_state = pkl.load(f)
             model_states.append(model_state)
 
         # Remove the files created by pysr.
-        os.remove(os.path.join(os.getcwd(), model.equation_file_))
-        os.remove(os.path.join(os.getcwd(), model.equation_file_[:-3] + "pkl"))
-        os.remove(os.path.join(os.getcwd(), model.equation_file_ + ".bkup"))
+        os.remove(os.path.join(os.getcwd(), edge_model.equation_file_))
+        os.remove(os.path.join(os.getcwd(), edge_model.equation_file_[:-3] + "pkl"))
+        os.remove(os.path.join(os.getcwd(), edge_model.equation_file_ + ".bkup"))
 
     plt.tight_layout()
     plot_file = os.path.join(output_dir, "nn_msgs_vs_symbolic.png")
