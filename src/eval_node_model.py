@@ -38,28 +38,22 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
     # Aggregate the significant edge messages across all sending nodes.
     i = 0
     X = np.zeros((df_y.shape[0], 3*dim+2))
-    ic(X.shape)
-    for idx, row in enumerate(target_node_array):
+    for idx, row in enumerate(target_node_array[:10]):
         dst_node = row
-        ic(dst_node)
         # Check if dst_node in the first column of x already
-        if np.any(np.all(X[:, :2*dim+2] == dst_node)):
-            print(f"Node {dst_node} already in X, skipping...")
+        if ic(np.any(ic(np.all(X[:, :2*dim+2] == dst_node, axis=1)))):
+            print(f"Node {idx}: {dst_node} already in X, skipping...")
             continue
         # Find all row idxs with the same target node.
         target_node_idxs = np.where(np.all(target_node_array == dst_node, axis=1))
-        ic(target_node_idxs)
 
         # Get all edge messages for the target node.
         target_node_msgs = most_important_msgs[target_node_idxs]
-        ic(target_node_msgs)
         # Aggregate the edge messages via sum.
         agg_msg = np.sum(target_node_msgs, axis=0)
-        ic(agg_msg)
         x_el = np.concatenate([dst_node, agg_msg])
-        ic(x_el)
         X[idx] = x_el
-        exit(1)
+
     # Fit a symbolic regression model for each component.
     fig, ax = plt.subplots(ncols=dim)
 
