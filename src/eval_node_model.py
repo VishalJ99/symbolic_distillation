@@ -7,10 +7,9 @@ import matplotlib.pyplot as plt
 from utils import calc_summary_stats
 import pickle as pkl
 import json
-from icecream import ic
 
 
-def main(input_csv_x, input_csv_y, nbody, output_dir):
+def main(input_csv_x, input_csv_y, output_dir, samples=5000):
     # Load the edge features and node output CSV files.
     df_x = pd.read_csv(input_csv_x)
     df_y = pd.read_csv(input_csv_y)
@@ -19,17 +18,18 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
     dim = 3 if "z1" in df_x.columns else 2
     accel_cols = ["a1", "a2"] + (["a3"] if dim == 3 else [])
 
+    # Labels for the pysr model are the instantaneous accelerations.
+    Y = df_y[accel_cols].to_numpy()
+
     # Fetch the recieving node features.
     target_node_feat_cols = ["x1", "y1"] + (["z1"] if dim == 3 else [])
     target_node_feat_cols += ["vx1", "vy1"] + (["vz1"] if dim == 3 else [])
     target_node_feat_cols += ["q1", "m1"]
-    target_node_array = np.array(df_x[target_node_feat_cols])
 
     # Fetch the sending node features.
     src_node_feat_cols = ["x2", "y2"] + (["z2"] if dim == 3 else [])
     src_node_feat_cols += ["vx2", "vy2"] + (["vz2"] if dim == 3 else [])
     src_node_feat_cols += ["q2", "m2"]
-    src_node_array = np.array(df_x[src_node_feat_cols])
 
     # Fetch the edge message array.
     msg_columns = [col for col in df_x.columns if "e" in col]
@@ -38,77 +38,34 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
     # Get indices of the most significant messages.
     msgs_std = msgs_array.std(axis=0)
     most_important_msgs_idxs = np.argsort(msgs_std)[-dim:]
-    most_important_msgs = msgs_array[:, most_important_msgs_idxs]
-
-    # Aggregate the significant edge messages across all sending nodes.
-    i = 0
-
-    # Initialise X - input to the symbolic regression model.
-    # x1, y1, (z1), vx1, vy1, (vz1), q1, m1, e...
-    # TODO: Find a way to vectorise this.
-    X = np.zeros((df_y.shape[0], 3 * dim + 2))
-    print("[INFO] Aggregating edge messages for each target node")
-    i = 0
-
-    # Loop over src node arrays.
-    # (same as dst nodes, just looping over them in a diff order).
-    for row in src_node_array:
-        dst_node = row
-        # Check if dst_node in X.
-        if np.any(np.all(X[:, : 2 * dim + 2] == dst_node, axis=1)):
-            continue
-
-        # Find all row idxs with the same target node.
-        target_node_idxs = np.where(
-            np.all(target_node_array == dst_node, axis=1)
-        )
-
-        # Get all edge messages for the target node.
-        target_node_msgs = most_important_msgs[target_node_idxs]
-
-        # Aggregate the edge messages via sum.
-        agg_msg = np.sum(target_node_msgs, axis=0)
-
-        # Add the aggregated message and node features to X.
-        X[i] = np.concatenate([dst_node, agg_msg])
-        i += 1
-
-    # Fit a symbolic regression model for each component.
-    fig, ax = plt.subplots(ncols=dim)
-
-    # Labels are the instantaneous accelerations.
-    Y = df_y[accel_cols].to_numpy()
-
-    ic(X, Y)
-
-    # Create synthetic keys for sorting.
-    df_x["src_key"] = df_x[src_node_feat_cols].apply(
-        lambda row: "_".join(row.values.astype(str)), axis=1
-    )
-
-    # # Aggregate the significant edge messages across all sending nodes using groupby and agg.
     most_important_msg_columns = [
         msg_columns[i] for i in most_important_msgs_idxs
     ]
-    agg_dict = {col: "sum" for col in most_important_msg_columns}
-    grouped_df = df_x.groupby(target_node_feat_cols).agg(agg_dict).reset_index()
 
-    # Add synthetic key to grouped_df for sorting.
+    # Aggregate the significant edge messages for all target nodes.
+    grouped_df = (
+        df_x.groupby(target_node_feat_cols)
+        .agg({col: "sum" for col in most_important_msg_columns})
+        .reset_index()
+    )
+
+    # Sorted rows based on order of the source nodes in df_x.
     grouped_df["target_key"] = grouped_df[target_node_feat_cols].apply(
         lambda row: "_".join(row.values.astype(str)), axis=1
     )
 
-    # Get the order of src_keys in df_x and use it to sort grouped_df.
+    df_x["src_key"] = df_x[src_node_feat_cols].apply(
+        lambda row: "_".join(row.values.astype(str)), axis=1
+    )
+
     order = pd.Index(df_x["src_key"].unique())
     grouped_df = grouped_df.set_index("target_key").reindex(order, fill_value=0)
 
-    # Drop the synthetic keys before further processing.
-    # grouped_df.drop(columns='target_key', inplace=True)
-    X2 = grouped_df.to_numpy()
-    assert (X2 == X).all(), "X and X2 are not equal"
-    exit(1)
-    # Random Sample 1000 points for faster fitting.
-    train_idxs = np.random.choice(X.shape[0], 1000, replace=False)
+    # Convert df to array w target node feats and summed important msgs.
+    X = grouped_df.to_numpy()
+
+    # Random sample points for faster fitting.
+    train_idxs = np.random.choice(X.shape[0], samples, replace=False)
 
     # Use remaining points for testing.
     test_idxs = np.setdiff1d(np.arange(X.shape[0]), train_idxs)
@@ -127,6 +84,7 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
     node_model.fit(X_train, Y_train)
     node_pred = node_model.predict(X_test)
 
+    fig, ax = plt.subplots(ncols=dim)
     for i in range(dim):
         # Create a scatter plot of the true vs predicted accels.
         ax[i].scatter(
@@ -153,9 +111,7 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
 
     # Calculate the diff statistics between the true and symbolic messages.
     accel_diff = node_pred - Y_test
-
     summary_stats = calc_summary_stats(accel_diff)
-
     a_diff_json_file = os.path.join(output_dir, "nn_a_symbolic_a_diff.json")
 
     with open(a_diff_json_file, "w") as f:
@@ -174,6 +130,7 @@ def main(input_csv_x, input_csv_y, nbody, output_dir):
 
     symbolic_node_dict = {
         "model": node_model_state,
+        "var_names": target_node_feat_cols + most_important_msg_columns,
         "important_msg_idxs": most_important_msgs_idxs.tolist(),
     }
 
@@ -200,15 +157,23 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "nbody", type=int, help="Number of bodies in the simulation"
+        "output_dir", type=str, help="Directory to save outputs"
     )
 
     parser.add_argument(
-        "output_dir", type=str, help="Directory to save outputs"
+        "--samples",
+        type=int,
+        default=5000,
+        help="Number of samples to use for fitting, default=5000",
     )
 
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    main(args.input_csv_x, args.input_csv_y, args.nbody, args.output_dir)
+    main(
+        args.input_csv_x,
+        args.input_csv_y,
+        args.output_dir,
+        args.samples,
+    )

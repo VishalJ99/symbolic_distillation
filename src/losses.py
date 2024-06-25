@@ -82,8 +82,8 @@ class MAELossWithKLMessageReg(nn.Module):
             messages = model.edge_model(e)
             mu = messages[:, ::2]
             logvar = messages[:, 1::2]
-            
-            # TODO: Squash logvar to some range. 
+
+            # TODO: Squash logvar to some range.
             kl_reg = torch.sum(0.5 * (mu**2 + torch.exp(logvar) - logvar - 1))
 
             # Divide by the number of edges in the graph.

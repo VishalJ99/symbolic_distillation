@@ -16,19 +16,28 @@ class GNN(MessagePassing):
         hidden=300,
         aggr="add",
         symbolic_edge_pkl_path=None,
+        symbolic_node_pkl_path=None,
     ):
         super(GNN, self).__init__(aggr=aggr)
         self.ndim = ndim
         self.msg_dim = msg_dim
 
         self.symbolic_edge_pkl_path = symbolic_edge_pkl_path
+        self.symbolic_node_pkl_path = symbolic_node_pkl_path
 
+        # Loads symbolic models as saved by eval_msgs.py and eval_node_model.py.
         if symbolic_edge_pkl_path:
             with open(symbolic_edge_pkl_path, "rb") as f:
                 symbolic_edge_pkl = pkl.load(f)
 
-            self.symbolic_edge_models = symbolic_edge_pkl["models"]
+            self.symbolic_edge_model = symbolic_edge_pkl["model"]
             self.important_msg_indices = symbolic_edge_pkl["important_msg_idxs"]
+
+        if symbolic_node_pkl_path:
+            with open(symbolic_node_pkl_path, "rb") as f:
+                symbolic_node_pkl = pkl.load(f)
+
+            self.symbolic_node_model = symbolic_node_pkl["model"]
 
         self.edge_model = Sequential(
             Linear(2 * n_f, hidden),
@@ -72,15 +81,10 @@ class GNN(MessagePassing):
 
             # Calc most important message components using pysr edge models.
             important_msg_components = torch.tensor(
-                np.asarray(
-                    [
-                        model.predict(x.cpu())
-                        for model in self.symbolic_edge_models
-                    ]
-                )
-            ).T.to(x_i.device, x_i.dtype)
+                np.asarray(self.symbolic_edge_model.predict(x.cpu()))
+            ).to(x_i.device, x_i.dtype)
 
-            # Construct the full message.
+            # Construct the full msg by padding non-important comps with zeros.
             msg = torch.zeros(
                 (x_i.shape[0], self.msg_dim), device=x_i.device, dtype=x_i.dtype
             )
@@ -93,9 +97,17 @@ class GNN(MessagePassing):
         return msg
 
     def update(self, aggr_out, x=None):
-        x = torch.cat([x, aggr_out], dim=1)
-        x_new = self.node_model(x)
-        return x_new
+        if self.symbolic_node_pkl_path:
+            # Get the most important components of the aggregated messages.
+            aggr_out_important = aggr_out[:, self.important_msg_indices]
+            x = torch.cat([x, aggr_out_important], dim=1)
+            y = torch.tensor(
+                np.asarray(self.symbolic_node_model.predict(x.cpu()))
+            ).to(x.device, x.dtype)
+        else:
+            x = torch.cat([x, aggr_out], dim=1)
+            y = self.node_model(x)
+        return y
 
 
 class VarGNN(GNN):

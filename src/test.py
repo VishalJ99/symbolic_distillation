@@ -15,7 +15,7 @@ from utils import (
     make_dir,
     model_factory,
     loss_factory,
-    get_node_message_info_df,
+    get_node_message_info_dfs,
     calc_summary_stats,
 )
 
@@ -25,8 +25,8 @@ def main(config):
     make_dir(output_dir)
 
     if config["save_messages"]:
-        messages_dir_path = os.path.join(output_dir, "test_messages")
-        make_dir(messages_dir_path)
+        sr_csv_dirpath = os.path.join(output_dir, "symbolic_regression_csvs")
+        make_dir(sr_csv_dirpath)
 
     # Save the config to the output directory for reproducibility.
     config_file = os.path.join(output_dir, "test_config.yaml")
@@ -84,7 +84,8 @@ def main(config):
     loss_fn = loss_factory(config["loss"], config["loss_params"])
 
     if config["save_messages"]:
-        df_list = []
+        df_x_list = []
+        df_y_list = []
         msgs_recorded = 0
 
     # Test loop.
@@ -107,11 +108,12 @@ def main(config):
                 and msgs_recorded < config["message_save_limit"]
             ):
                 # Record edge messages.
-                df = get_node_message_info_df(
+                df_x, df_y = get_node_message_info_dfs(
                     graph, model, dim=(graph.x.shape[1] - 2) // 2
                 )
-                msgs_recorded += len(df)
-                df_list.append(df)
+                msgs_recorded += len(df_x)
+                df_x_list.append(df_x)
+                df_y_list.append(df_y)
 
     # Save test results to a CSV.
     loss_np = loss_array.numpy()  # Convert to numpy for easier manipulation
@@ -139,11 +141,14 @@ def main(config):
     # Save test results and messages if required
     if config["save_messages"]:
         print("[INFO] Saving node messages...")
-        df = pd.concat(df_list)
+        df_x = pd.concat(df_x_list)
         node_message_save_path = os.path.join(
-            messages_dir_path, "node_messages.csv"
+            sr_csv_dirpath, "edge_messages.csv"
         )
-        df.to_csv(node_message_save_path, index=False)
+        df_x.to_csv(node_message_save_path, index=False)
+        df_y = pd.concat(df_y_list)
+        node_accel_save_path = os.path.join(sr_csv_dirpath, "node_accels.csv")
+        df_y.to_csv(node_accel_save_path, index=False)
 
 
 if __name__ == "__main__":
