@@ -1,5 +1,3 @@
-
-
 \documentclass[11pt]{article}
 \usepackage[utf8]{inputenc}
 \usepackage{geometry}
@@ -16,7 +14,7 @@
 \usepackage{siunitx}
 \usepackage{amssymb}
 \usepackage{subcaption}
-
+\usepackage{booktabs}  % For better table lines
 % Set page margins
 \geometry{a4paper, margin=1in}
 
@@ -36,6 +34,7 @@ with Inductive Biases: Reproduction Report}
 \date{\today}
 
 \begin{document}
+\tableofcontents
 \section{Introduction}
 % Introduce what this report is tackling: reproducing subset of results from Cranmer et al.
 
@@ -192,150 +191,92 @@ The symbolic distillation of the node model is similar to that of the edge model
 \subsection{Evaluation metrics}
 To evaluate model performance, the mean absolute error (MAE) between the predicted and true accelerations is calculated over the test set. This metric assesses the predictive capabilities of the trained model. Additionally, the standard deviation of the top 15 edge messages is computed to evaluate the compactness of the learnt representations. This metric indicates whether the training resulted in a model that correctly captured the problem's dimensionality. The $R^2$ metric between the significant edge message components and a linear transformation of the true pairwise force is also calculated. The appendix of the original paper provides a mathematical argument for why the model would learn a linear transformation of the pairwise force. Furthermore, a qualitative binary classification of the models is conducted, considering a model successful if it can recover the correct force law. This is determined by comparing the symbolic model to the true force law and verifying if the symbolic model represents a linear transformation of the true force law.
 
-\section{Implementation}
 
 \section{Results}
-
-% Code base structure, data storage, seed, local environment differences.
-% Flowchart / graph.
-
-\section{Reproducibility}
-% Perhaps not just using the best model but checking if a slightly worse symbolic model was better.
-% Talk about perhaps the more sensible thing would be to distill one at a time in accordance with the framework.
-% Effect of training for fewer epochs
-% Discuss challenges reproducing the results of the paper.
-% Discuss how the code base is designed to give reproduible results
-% Dataset storage.
-% Dataset seed and local environment differences.
-% Try to generate the dataset from a docker container to standardise the environment.
-% Config files git commits, wandb
-% Future work, squash velocity, use a larger eps and see if the model can learn this, squash the log var. For data pre processing 
-% Preprocessing not in paper but got nans in kl otherwise
-% Explore purely velocity based pre pru
-% Adding more inductive biases eg newtons 3rd law and checking the results,
-
-% Mon 
-\section{Results}
-\subsection{Pruned Test Set}
-\begin{table}[h]
-    \centering
-    \begin{tabular}{lcccc}
-    \hline
-    Sim & KL & Standard & Bottleneck & L$_{1}$ \\
-    \hline
-    Spring 3d & 2.7227 & \textbf{0.0607} & 0.0640 & 0.0895 \\
-    Charge 2d & nan & 1.1333 & \textbf{1.0220} & 1.1526 \\
-    r$^{-1}$ 2d & 2.3468 & 0.0278 & \textbf{0.0263} & 0.0370 \\
-    r$^{-2}$ 3d & 4.7287 & 0.7955 & \textbf{0.7664} & 0.8266 \\
-    r$^{-2}$ 2d & 5.0257 & 0.9695 & \textbf{0.8214} & 0.8453 \\
-    r$^{-1}$ 3d & 3.3449 & \textbf{0.0374} & 0.0376 & 0.0507 \\
-    Spring 2d & 1.7688 & \textbf{0.0209} & \textbf{0.0209} & 0.0281 \\
-    Charge 3d & 4.3491 & 0.5615 & \textbf{0.4956} & 0.5189 \\
-    \hline
-    \end{tabular}
-    \caption{Performance statistics for Median}
-    \label{tab:Median}
+% Check that if while the edge model might not always be pairwise force, the node model should always just be returning aggr or a scaled version since nns like to learn identity funcs. Cool talking point
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{lcccc}
+        \hline
+        Sim & Standard & Bottleneck & L$_1$ & KL \\
+        \hline
+        Charge-3 & \textbf{0.110}  & 0.140  & 0.157  & 3.325  \\
+        Charge-2 & 0.466  & \textbf{0.462}  & 0.483  & 3.267  \\
+        r$^{-2}$-3 & 0.1753  & \textbf{0.1746}  & 0.2128  & 3.8264  \\
+        r$^{-2}$-2 & 0.475  & 0.461  & \textbf{0.450}  & 4.0380  \\
+        r$^{-1}$-3 & 0.0283  & \textbf{0.0261}  & 0.0408  & 3.251  \\
+        r$^{-1}$-2 & 0.0254  & \textbf{0.0238}  & 0.0326  & 2.3365  \\
+        Spring-3 & \textbf{0.0566}  & 0.0595  & 0.0728  & 2.6839  \\
+        Spring-2 & 0.0200  & \textbf{0.0182}  & 0.0249  & 1.7455  \\
+        \hline
+        \end{tabular}
+        \caption{MAE loss on test set. Best value across training strategy shown in bold.}
+        \label{tab:reordered_table}
     \end{table}
+
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{lcccc}
+        \hline
+        Sim & Standard & Bottleneck & L$_1$ & KL \\
+        \hline
+        Charge-3 & 0.429 & \textbf{0.817} & 0.683 & 0.251 \\
+        Charge-2 & 0.006 & \textbf{0.700} & 0.006 & 0.381 \\
+        r$^{-2}$-3 & 0.502 & \textbf{0.518} & 0.505 & 0.323 \\
+        r$^{-2}$-2 & 0.001 & \textbf{0.411} & 0.181 & 0.291 \\
+        r$^{-1}$-3 & 0.402 & \textbf{0.403} & 0.364 & 0.333 \\
+        r$^{-1}$-2 & 0.314 & \textbf{0.324} & 0.324 & 0.250 \\
+        Spring-3 & 0.430 & 0.430 & \textbf{0.990} & 0.918 \\
+        Spring-2 & 0.422 & 0.999 & \textbf{1.000} & 0.768 \\
+
+        \hline
+        \end{tabular}
+        \caption{$R^2$ metric between the significant edge message components and a linear transformation of the true pairwise force. Best value across training strategy shown in bold.}
+        \label{tab:metrics_comparison}
+    \end{table}
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{lcccc}
+        \hline
+        Sim & Standard & Bottleneck & L$_1$ & KL \\
+        \hline
+        Charge-3 & 0.404 & 1.000 & 0.474 & 0.550 \\
+        Charge-2 & 0.180 & 1.000 & 0.263 & 0.667 \\
+        r$^{-2}$-3 & 0.583 & 1.000 & 0.795 & 0.925 \\
+        r$^{-2}$-2 & 0.374 & 1.000 & 0.525 & 0.712 \\
+        r$^{-1}$-3 & 0.877 & 1.000 & 0.743 & 0.719 \\
+        r$^{-1}$-2 & 0.591 & 1.000 & 0.925 & 0.990 \\
+        Spring-3 & 0.889 & 1.000 & 0.999  & 0.993 \\
+        Spring-2 & 0.737 & 1.000 & 1.000 & 0.989 \\
+        \hline
+        \end{tabular}
+        \caption{Percent of total edge message variance across all components explained by the top $d$ components, where $d$ is the dimensionality of the problem.}
+        \label{tab:metrics_comparison}
+    \end{table}
+    \section{Implementation}
+
+    \section{Results}
     
-    \begin{table}[h]
-        \centering
-        \begin{tabular}{lcccc}
-        \hline
-        Sim & KL & Standard & Bottleneck & L$_{1}$ \\
-        \hline
-        Spring 3d & 2.7299 & \textbf{0.0708} & 0.0753 & 0.1083 \\
-        Charge 2d & nan & 3.0379 & \textbf{2.8888} & 3.0971 \\
-        r$^{-1}$ 2d & 2.3706 & 0.0419 & \textbf{0.0397} & 0.0529 \\
-        r$^{-2}$ 3d & 5.6837 & 1.7899 & \textbf{1.7301} & 1.7584 \\
-        r$^{-2}$ 2d & 6.8925 & \textbf{2.8064} & 2.9481 & 2.8219 \\
-        r$^{-1}$ 3d & 3.3496 & 0.0760 & 0.0763 & \textbf{0.0709} \\
-        Spring 2d & 1.7579 & \textbf{0.0236} & 0.0267 & 0.0345 \\
-        Charge 3d & 4.9074 & 1.1884 & \textbf{1.1209} & 1.1405 \\
-        \hline
-        \end{tabular}
-        \caption{Performance statistics for Mean}
-        \label{tab:Mean}
-        \end{table}
-        \begin{table}[h]
-            \centering
-            \begin{tabular}{lcccc}
-            \hline
-            Sim & KL & Standard & Bottleneck & L$_{1}$ \\
-            \hline
-            Spring 3d & 0.0808 & \textbf{0.0257} & 0.0282 & 0.0466 \\
-            Charge 2d & nan & 5.2458 & \textbf{5.0082} & 5.1052 \\
-            r$^{-1}$ 2d & 0.1610 & 0.0535 & \textbf{0.0527} & 0.0556 \\
-            r$^{-2}$ 3d & 4.0685 & 2.6208 & 2.5762 & \textbf{2.5614} \\
-            r$^{-2}$ 2d & 5.9032 & \textbf{5.2893} & 5.5942 & 5.5585 \\
-            r$^{-1}$ 3d & 0.1447 & 0.1002 & 0.0965 & \textbf{0.0669} \\
-            Spring 2d & 0.0682 & \textbf{0.0083} & 0.0133 & 0.0137 \\
-            Charge 3d & 1.9053 & 1.7529 & 1.7078 & \textbf{1.7044} \\
-            \hline
-            \end{tabular}
-            \caption{Performance statistics for Standard Deviation}
-            \label{tab:Standard Deviation}
-            \end{table}
-            
-\subsection{Pruned Test Set}
-\begin{table}[h]
-    \centering
-    \begin{tabular}{lcccc}
-    \hline
-    Sim & KL & Standard & Bottleneck & L$_{1}$ \\
-    \hline
-    Spring 3d & 2.6960 & \textbf{0.0561} & 0.0589 & 0.0723 \\
-    Charge 2d & 3.2076 & 0.4216 & \textbf{0.4178} & 0.4491 \\
-    r$^{-1}$ 2d & 2.3171 & 0.0252 & \textbf{0.0236} & 0.0326 \\
-    r$^{-2}$ 3d & 3.8290 & 0.1811 & \textbf{0.1806} & 0.2191 \\
-    r$^{-2}$ 2d & 3.9970 & 0.559 & 0.4469 & \textbf{0.4419} \\
-    r$^{-1}$ 3d & 3.2756 & 0.0281 & \textbf{0.0258} & 0.0405 \\
-    Spring 2d & 1.7595 & 0.0197 & \textbf{0.0181} & 0.0248 \\
-    Charge 3d & 3.3149 & \textbf{0.1062} & 0.1363 & 0.1544 \\
-    \hline
-    \end{tabular}
-    \caption{Performance statistics for Median}
-    \label{tab:Median}
-    \end{table}
-
-    \begin{table}[h]
-        \centering
-        \begin{tabular}{lcccc}
-        \hline
-        Sim & KL & Standard & Bottleneck & L$_{1}$ \\
-        \hline
-        Spring 3d & 2.6839 & \textbf{0.0566} & 0.0595 & 0.0728 \\
-        Charge 2d & 3.2668 & 0.4662 & \textbf{0.4620} & 0.4829 \\
-        r$^{-1}$ 2d & 2.3365 & 0.0254 & \textbf{0.0238} & 0.0326 \\
-        r$^{-2}$ 3d & 3.8264 & 0.1753 & \textbf{0.1746} & 0.2128 \\
-        r$^{-2}$ 2d & 4.0380 & 0.4745 & 0.4611 & \textbf{0.4499} \\
-        r$^{-1}$ 3d & 3.2505 & 0.0283 & \textbf{0.0261} & 0.0408 \\
-        Spring 2d & 1.7455 & 0.0200 & \textbf{0.0182} & 0.0249 \\
-        Charge 3d & 3.3249 & \textbf{0.1095} & 0.1400 & 0.1574 \\
-        \hline
-        \end{tabular}
-        \caption{Performance statistics for Mean}
-        \label{tab:Mean}
-        \end{table}
-        
-        \begin{table}[h]
-            \centering
-            \begin{tabular}{lcccc}
-            \hline
-            Sim & KL & Standard & Bottleneck & L$_{1}$ \\
-            \hline
-            Spring 3d & 0.0570 & \textbf{0.0031} & 0.0034 & 0.0038 \\
-            Charge 2d & 0.4166 & 0.2107 & 0.1859 & \textbf{0.1783} \\
-            r$^{-1}$ 2d & 0.1466 & 0.0048 & 0.0047 & \textbf{0.0040} \\
-            r$^{-2}$ 3d & 0.2638 & \textbf{0.0418} & 0.0427 & 0.0497 \\
-            r$^{-2}$ 2d & 0.5566 & 0.1688 & 0.1666 & \textbf{0.1420} \\
-            r$^{-1}$ 3d & 0.1011 & \textbf{0.0028} & 0.0029 & 0.0037 \\
-            Spring 2d & 0.0656 & \textbf{0.0013} & \textbf{0.0013} & 0.0015 \\
-            Charge 3d & 0.1677 & \textbf{0.0153} & 0.0222 & 0.0189 \\
-            \hline
-            \end{tabular}
-            \caption{Performance statistics for Standard Deviation}
-            \label{tab:Standard Deviation}
-            \end{table}
+    % Code base structure, data storage, seed, local environment differences.
+    % Flowchart / graph.
+    
+    \section{Reproducibility}
+    % Perhaps not just using the best model but checking if a slightly worse symbolic model was better.
+    % Talk about perhaps the more sensible thing would be to distill one at a time in accordance with the framework.
+    % Effect of training for fewer epochs
+    % Discuss challenges reproducing the results of the paper.
+    % Discuss how the code base is designed to give reproduible results
+    % Dataset storage.
+    % Dataset seed and local environment differences.
+    % Try to generate the dataset from a docker container to standardise the environment.
+    % Config files git commits, wandb
+    % Future work, squash velocity, use a larger eps and see if the model can learn this, squash the log var. For data pre processing 
+    % Preprocessing not in paper but got nans in kl otherwise
+    % Explore purely velocity based pre pru
+    % Adding more inductive biases eg newtons 3rd law and checking the results,
+    % Discussion point to try add more inductive biases, via physical unit loss term 
+    % , NL3 etc
+    % Mon 
 \bibliographystyle{plain}  % Choose the style that suits your needs
 \bibliography{references}  
 \end{document}
