@@ -194,24 +194,24 @@ To evaluate model performance, the mean absolute error (MAE) between the predict
 
 \section{Results}
 % Check that if while the edge model might not always be pairwise force, the node model should always just be returning aggr or a scaled version since nns like to learn identity funcs. Cool talking point
-    \begin{table}[H]
-        \centering
-        \begin{tabular}{lcccc}
-        \hline
-        Sim & Standard & Bottleneck & L$_1$ & KL \\
-        \hline
-        Charge-3 & \textbf{0.110}  & 0.140  & 0.157  & 3.325  \\
-        Charge-2 & 0.466  & \textbf{0.462}  & 0.483  & 3.267  \\
-        r$^{-2}$-3 & 0.1753  & \textbf{0.1746}  & 0.2128  & 3.8264  \\
-        r$^{-2}$-2 & 0.475  & 0.461  & \textbf{0.450}  & 4.0380  \\
-        r$^{-1}$-3 & 0.0283  & \textbf{0.0261}  & 0.0408  & 3.251  \\
-        r$^{-1}$-2 & 0.0254  & \textbf{0.0238}  & 0.0326  & 2.3365  \\
-        Spring-3 & \textbf{0.0566}  & 0.0595  & 0.0728  & 2.6839  \\
-        Spring-2 & 0.0200  & \textbf{0.0182}  & 0.0249  & 1.7455  \\
-        \hline
-        \end{tabular}
-        \caption{MAE loss on test set. Best value across training strategy shown in bold.}
-        \label{tab:reordered_table}
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lcccc}
+    \hline
+    Sim & Standard & Bottleneck & L$_1$ & KL \\
+    \hline
+    Charge-3 & \textbf{0.110} $\pm$ 0.015 & \textbf{0.140} $\pm$ 0.022 & 0.157 $\pm$ 0.019 & 3.325 $\pm$ 0.168 \\
+    Charge-2 & \textbf{0.466} $\pm$ 0.211 & \textbf{0.462} $\pm$ 0.186 & \textbf{0.483} $\pm$ 0.178 & 3.267 $\pm$ 0.417 \\
+    r$^{-2}$-3 & \textbf{0.1753} $\pm$ 0.042 & \textbf{0.1746} $\pm$ 0.043 & \textbf{0.2128} $\pm$ 0.050 & 3.8264 $\pm$ 0.264 \\
+    r$^{-2}$-2 & \textbf{0.475} $\pm$ 0.169 & \textbf{0.461} $\pm$ 0.167 & \textbf{0.450} $\pm$ 0.142 & 4.0380 $\pm$ 0.557 \\
+    r$^{-1}$-3 & 0.0283 $\pm$ 0.003 & \textbf{0.0261} $\pm$ 0.003 & 0.0408 $\pm$ 0.004 & 3.251 $\pm$ 0.101 \\
+    r$^{-1}$-2 & 0.0254 $\pm$ 0.005 & \textbf{0.0238} $\pm$ 0.005 & 0.0326 $\pm$ 0.004 & 2.3365 $\pm$ 0.147 \\
+    Spring-3 & \textbf{0.0566} $\pm$ 0.003 & 0.0595 $\pm$ 0.003 & 0.0728 $\pm$ 0.004 & 2.6839 $\pm$ 0.057 \\
+    Spring-2 & 0.0200 $\pm$ 0.001 & \textbf{0.0182} $\pm$ 0.001 & 0.0249 $\pm$ 0.001 & 1.7455 $\pm$ 0.066 \\
+    \hline
+    \end{tabular}
+    \caption{Mean Absolute Error (MAE) loss on the test set, presented as mean $\pm$ standard deviation. The best values across different training strategies are shown in bold. Values are highlighted in bold when their confidence intervals overlap with the lowest MAE value for a given simulation.}
+    \label{tab:mae_table_with_std}
     \end{table}
 
     \begin{table}[H]
@@ -253,9 +253,122 @@ To evaluate model performance, the mean absolute error (MAE) between the predict
         \caption{Percent of total edge message variance across all components explained by the top $d$ components, where $d$ is the dimensionality of the problem.}
         \label{tab:metrics_comparison}
     \end{table}
+
+\subsection{Symbolic Regression Results}
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{lcccc}
+        \hline
+        Sim & Standard & Bottleneck & L$_1$ & KL \\
+        \hline
+        Charge-3 & 3/3 & 3/3 & 0/3 & 0/3 \\
+        Charge-2 & 0/2 & 1/2 & 1/2 & 0/2 \\
+        r$^{-2}$-3 & 1/3 & 3/3 & 3/3 & 0/3 \\
+        r$^{-2}$-2 & 0/2 & 2/2 & 0/2 & 1/2 \\
+        r$^{-1}$-3 & 3/3 & 3/3 & 2/3 & 3/3 \\
+        r$^{-1}$-2 & 0/2 & 2/2 & 2/2 & 2/2 \\
+        Spring-3 & 0/3 & 0/3 & 2/3  & 0/3 \\
+        Spring-2 & 1/2 & 2/2 & 2/2 & 0/2 \\
+        \hline
+        \end{tabular}
+        \caption{Successful reconstructions of the pairwise force (or acceleration) after symbolically regressing the $d$ significant components of edge model, where $d$ is the dimensionality of the problem.}
+        \label{tab:sr_edge_model_table}
+    \end{table}
+
+    \noindent Example successful reconstructions of pairwise force (or acceleration) after symbolically regressing the edge model.
+    \begin{itemize}
+        \item
+        Spring 2d, L$_1$ (expect $\phi^{e}_i \approx \mathbf{a} \cdot (1-\frac{1}{r}) \mathbf{\Delta {r}} + b$):
+        $$
+        \phi^{e}_1 = (-0.291 + \frac{0.287}{r})(\Delta x - 0.986 \Delta y) + 0.00118
+        $$
+        \item 
+        r$^{-1}$ 2d, KL (expect $\phi^{e}_i \approx \mathbf{a} \cdot \frac{m_1 m_2}{r^2} \mathbf{\Delta r} + b$):
+        $$\phi^{e}_2 = -\frac{0.273m_2(\Delta x + \Delta y)}{r^2}$$
+        \item 
+        r$^{-2}$ 3d, bottleneck (expect $\phi^{e}_i \approx \mathbf{a} \cdot \frac{m_1 m_2}{r^3} \mathbf{\Delta r} + b$):
+        $$\phi^{e}_3 = \frac{6.06m_2(-0.713\Delta x + \Delta y + 2.44\Delta z)}{r^3}$$
+        \item 
+        Charge 3d, standard (expect $\phi^{e}_i \approx \mathbf{a} \cdot \frac{q_1 q_2}{r^3} \mathbf{\Delta r} + b$. Note, because $q_1, q_2 \in \{-1, 1\}$, $q_1 \times q_2 \equiv \frac{q_1}{q_2} \equiv \frac{q_2}{q_1}$):
+        $$\phi^{e}_1 = = -\frac{39.3q_2(0.273\Delta x + \Delta y)}{ q_1 m_1r^3}$$
+    \end{itemize}
+    Here, $\mathbf{a} = (a_1, a_2)$ and $b$ are constants, $\mathbf{\Delta r} = (\Delta x, \Delta y, \Delta z)$ represents the displacement vector, $q_1, q_2$ are the charges and $m_1, m_2$ are the masses. $\phi^{e}_i$ is the $i$th component of the edge message, reflecting the interaction from body 1 to body 2. Note how the reconstruction for the shown spring 2d experiment is a linear transformation of the true pairwise force whereas the other expressions have divided through by the mass of the receiving particle, $m_1$, and thus represent the acceleration.
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{lcccc}
+        \hline
+        Sim & Standard & Bottleneck & L$_1$ & KL \\
+        \hline
+        Charge-3 & 3/3 & 0/3 & 0/3 & 1/3 \\
+        Charge-2 & 0/2 & 0/2 & 0/2 & 0/2 \\
+        r$^{-2}$-3 & 3/3 & 2/3 & 3/3 & 0/3 \\
+        r$^{-2}$-2 & 1/2 & 1/2 & 1/2 & 0/2 \\
+        r$^{-1}$-3 & 3/3 & 3/3 & 3/3 & 0/3 \\
+        r$^{-1}$-2 & 2/2 & 2/2 & 2/2 & 1/2 \\
+        Spring-3 & 2/3 & 1/3 & 3/3  & 0/3 \\
+        Spring-2 & 2/2 & 2/2 & 2/2 & 0/2 \\
+        \hline
+        \end{tabular}
+        \caption{Successful reconstructions of the newtons 2nd law after symbolically regressing the node model after symbolically regressing the components of the node models output.}
+        \label{tab:sr_edge_model_table}
+    \end{table}
+
+
+Example successful reconstructions of newtons 2nd law after symbolically regressing the node model
+(expect $\phi^{v}_i \approx \frac{\mathbf{a} \cdot \mathbf{\bar{e}} + b}{m_1}$, where $\bar{e}$ is the aggregated edge message and $m_1$ is the mass of the receiving particle).
+\begin{itemize}
+        \item
+        Spring 2d, bottleneck:
+        $$
+        \phi^{v}_1 = \frac{0.199\bar{e_1} - 0.509\bar{e_2} + 0.0316}{m_1}$$
+        \item
+        r$^{-1}$ 3d, standard:
+        $$
+        \phi^{v}_2 = -0.00317\bar{e_3} - 0.00379\bar{e_1} - 0.00253\bar{e_2} + 0.00396
+        $$
+        \item
+        r$^{-2}$ 2d, L$_1$:
+        $$
+        \phi^{v}_1 = 7.76\bar{e_1} - \bar{e_2}
+        $$
+        \item
+        Charge 3d, KL:
+        $$
+        \phi^{v}_2 = \frac{0.147(\bar{e_1} + \bar{e_2})}{m_1}
+        $$
+    \end{itemize}
+
+    In some cases, the node model is a simple linear transform of the aggregated edge messages, this occurs when the edge model learns the pairwise acceleration, so the node model just acts as a sum over the individual accelerations to return the net acceleration. 
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{lcccc}
+        \hline
+        Sim & Symbolic & Neural Net \\
+        \hline
+        Charge-3 & 1.426 $\pm$ 0.267 & \textbf{0.110} $\pm$ 0.015 \\
+        r$^{-2}$-3 & 3.4867 $\pm$ 1.110 & \textbf{0.1746} $\pm$ 0.043 \\
+        r$^{-1}$-3 & 0.1604 $\pm$ 0.027 &\textbf{0.0261} $\pm$ 0.003 \\
+        r$^{-1}$-2 & 0.0296 $\pm$ 0.006 & \textbf{0.0238} $\pm$ 0.005 \\
+        Spring-2 & \textbf{0.0168} $\pm$ 0.001 & 0.0182 $\pm$ 0.001 \\
+        \hline
+        \end{tabular}
+        \caption{Symbolic Model Performance Vs Neural Network}
+        \label{tab:sr_vs_nn_table}
+    \end{table}
+
+    \section{Discussion}
+    % Discussion point:
+% R2 failing but symbolic reconstruction succeeding …
+% Nans on the unpruned test set, squashing log var.
+% Bottleneck seeming to perform best.
+% Random seed would be good analysis to perform, this report attempted to train for longer, to run for multiple seeds would require a tradeoff with shorter hours. Loss found to keep decreasing even towards end epochs
+% Investigate NaNs
+% R1 learning eps.
     \section{Implementation}
 
     \section{Results}
+
+
     
     % Code base structure, data storage, seed, local environment differences.
     % Flowchart / graph.
@@ -276,7 +389,14 @@ To evaluate model performance, the mean absolute error (MAE) between the predict
     % Adding more inductive biases eg newtons 3rd law and checking the results,
     % Discussion point to try add more inductive biases, via physical unit loss term 
     % , NL3 etc
+    % Discussion point - stronger L1 or an L1 scheduler type thing.
     % Mon 
+    \section{Appendix}
+    Example of a failed reconstruction:
+    Spring 3D, $L_1$: expect $\phi^{e}_i \approx (1-\frac{1}{r})\mathbf{a} \cdot \mathbf{\Delta r} + b$.
+    
+    $$\phi^{e}_1 = (0.0772r + 0.102)(0.381 \Delta x - 0.190 \Delta y + \Delta z)$$
+
 \bibliographystyle{plain}  % Choose the style that suits your needs
 \bibliography{references}  
 \end{document}
