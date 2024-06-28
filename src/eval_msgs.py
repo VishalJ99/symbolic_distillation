@@ -114,7 +114,7 @@ def main(input_csv, output_dir, sim, samples, eps=1e-2, no_sr=False):
     with open(R2_file, "w") as f:
         f.write(json.dumps(R2_stats))
         print(f"[INFO] R2 statistics saved to {R2_file}")
-    
+
     if not no_sr:
         # Fit a symbolic regression model for each component
         X_cols = pos_cols + ["r", "q1", "q2", "m1", "m2"]
@@ -156,7 +156,9 @@ def main(input_csv, output_dir, sim, samples, eps=1e-2, no_sr=False):
 
             # Remove the files created by pysr.
             os.remove(
-                os.path.join(os.getcwd(), edge_model.equation_file_ + f".out{i+1}")
+                os.path.join(
+                    os.getcwd(), edge_model.equation_file_ + f".out{i+1}"
+                )
             )
             os.remove(
                 os.path.join(
@@ -190,10 +192,12 @@ def main(input_csv, output_dir, sim, samples, eps=1e-2, no_sr=False):
                 f"{output_dir}/symbolic_edge.pkl"
             )
 
-        os.remove(os.path.join(os.getcwd(), edge_model.equation_file_[:-3] + "pkl"))
+        os.remove(
+            os.path.join(os.getcwd(), edge_model.equation_file_[:-3] + "pkl")
+        )
 
         # Calculate the diff statistics between the true and symbolic messages.
-        # Note all dims are considered here 
+        # Note all dims are considered here
         # (maybe consider each dim separately?)
         msg_diff = edge_pred - Y_test
         msg_diff_summary_stats = calc_summary_stats(msg_diff)
@@ -239,8 +243,15 @@ if __name__ == "__main__":
         action="store_true",
         help="Skip symbolic regression fitting",
     )
-    
+
     args = parser.parse_args()
 
-    main(args.input_csv, args.output_dir, args.sim, args.samples, args.eps, args.no_sr)
+    main(
+        args.input_csv,
+        args.output_dir,
+        args.sim,
+        args.samples,
+        args.eps,
+        args.no_sr,
+    )
     print("[SUCCESS] Message Evaluation Complete.")
