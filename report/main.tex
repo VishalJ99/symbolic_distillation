@@ -14,7 +14,8 @@
 \usepackage{siunitx}
 \usepackage{amssymb}
 \usepackage{subcaption}
-\usepackage{booktabs}  % For better table lines
+\usepackage{booktabs}
+\usepackage{tikz}  % For better table lines
 % Set page margins
 \geometry{a4paper, margin=1in}
 
@@ -182,18 +183,20 @@ After training the model end to end, the edge and node model are symbolically di
 The best symbolic model is selected by evaluating the mean absolute error (MAE) and the complexity of the model. The complexity is scored by counting the number of occurrences of each operator, constant, and input variable. PySR outputs several equations at each complexity level. The chosen formula is one that maximises the fractional drop in MAE over an increase in complexity from the next best model.
 
 \subsubsection{Symbolic Distillation of the Edge Model}
-To symbolically distil the edge model, its inputs and outputs are recorded over the test set. The input comprises the concatenated feature vectors of two nodes connected by an edge, including the position, velocity, mass, and charge of each node ($(m_1, m_2, q_1, q_2, x_1, x_2, \ldots)$). Given that force laws depend on the relative positions of the nodes, To simplify, the positions are converted to $\Delta x = x_2 - x_1$ for displacement, similarly for $y$ (and $z$ in 3D), and $r = \sqrt{\Delta x^2 + \Delta y^2 + (\Delta z^2)}$ for distance. This array of $(m_1, m_2, q_1, q_2, \Delta x, \Delta y, (\Delta z), r)$ comprises as the input to the symbolic model. Next, the $d$ most significant components of the corresponding edge message are selected as the output labels for the symbolic regression model. Significance here is defined by the components of the edge message with the highest standard deviation across the samples, where $d$ is the dimensionality (2 or 3). In the bottleneck strategy, the edge message is already of the correct dimensionality, so no further processing is needed. 5000 such samples are collected from the data in the test set, and the symbolic model is fit to these data points.
+To symbolically distil the edge model, its inputs and outputs are recorded over the test set. The input comprises the concatenated feature vectors of two nodes connected by an edge, including the position, velocity, mass, and charge of each node ($(m_1, m_2, q_1, q_2, x_1, x_2, \ldots)$). Given that force laws depend on the relative positions of the nodes, To simplify, the positions are converted to $\Delta x = x_2 - x_1$ for displacement, similarly for $y$ (and $z$ in 3D), and $r = \sqrt{\Delta x^2 + \Delta y^2 + (\Delta z^2)}$ for distance. This array of $(m_1, m_2, q_1, q_2, \Delta x, \Delta y, (\Delta z), r)$ comprises as the input to the symbolic model. Next, the $d$ most significant components of the corresponding edge message are selected as the output labels for the symbolic regression model. Significance here is defined by the components of the edge message with the highest standard deviation across the samples, where $d$ is the dimensionality (2 or 3). In the bottleneck strategy, the edge message is already of the correct dimensionality, so no further processing is needed. In the original paper, 5000 samples are collected from the data in the test set, however in this analysis 1000 samples are used to reduce the computational cost of the symbolic regression.
 
 \subsubsection{Symbolic Distillation of the Node Model}
-The symbolic distillation of the node model is similar to that of the edge model. The input to the symbolic model is the node's feature vector, which includes the position, velocity, mass, and charge of the node ($(m_1, q_1, x_1, \ldots)$), and the aggregated inbound edge messages. The aggregation is not performed over the full 100 dimensions of the edge message, but rather the $d$ most significant components, where $d$ is the dimensionality of the problem (2 or 3). The output of the symbolic model is the predicted instantaneous acceleration of the node. The symbolic model is fit to 5000 samples from the test set.
+The symbolic distillation of the node model is similar to that of the edge model. The input to the symbolic model is the node's feature vector, which includes the position, velocity, mass, and charge of the node ($(m_1, q_1, x_1, \ldots)$), and the aggregated inbound edge messages. The aggregation is not performed over the full 100 dimensions of the edge message, but rather the $d$ most significant components, where $d$ is the dimensionality of the problem (2 or 3). The output of the symbolic model is the predicted instantaneous acceleration of the node. In the original paper, 5000 samples are collected from the data in the test set, however in this analysis 1000 samples are used to reduce the computational cost of the symbolic regression.
 
 
 \subsection{Evaluation metrics}
-To evaluate model performance, the mean absolute error (MAE) between the predicted and true accelerations is calculated over the test set. This metric assesses the predictive capabilities of the trained model. Additionally, the standard deviation of the top 15 edge messages is computed to evaluate the compactness of the learnt representations. This metric indicates whether the training resulted in a model that correctly captured the problem's dimensionality. The $R^2$ metric between the significant edge message components and a linear transformation of the true pairwise force is also calculated. The appendix of the original paper provides a mathematical argument for why the model would learn a linear transformation of the pairwise force. Furthermore, a qualitative binary classification of the models is conducted, considering a model successful if it can recover the correct force law. This is determined by comparing the symbolic model to the true force law and verifying if the symbolic model represents a linear transformation of the true force law.
-
+To evaluate model performance, the mean absolute error (MAE) between the predicted and true accelerations is calculated over the test set. This metric assesses the predictive capabilities of the trained model. Additionally, the standard deviation of the top 15 edge messages is computed to evaluate the compactness of the learnt representations. This metric indicates whether the training resulted in a model that correctly captured the problem's dimensionality. The $R^2$ metric between the significant edge message components and a linear transformation of the true pairwise force is also calculated. The specific linear transformation is found through a minimisation the mean squared error (MSE) between observed message components and those predicted by a linear combination of force components. This is implemented through using the \texttt{minimize} function from the \texttt{scipy.optimize} module, employing the Powell method. The optimisation only considers the MSE errors within the 90th percentile of their absolute values, thereby reducing the influence of outliers. This is the same method used in the original paper. The appendix of the original paper provides a mathematical argument for why the model would learn a linear transformation of the pairwise force. Finally, the trained model is evaluated through symbolically regressing its edge and node models and checking how many components yield a linear transformation of the true pairwise force and newtons second law respectively.
 
 \section{Results}
 % Check that if while the edge model might not always be pairwise force, the node model should always just be returning aggr or a scaled version since nns like to learn identity funcs. Cool talking point
+
+\subsection{Model Evaluation}
+The first set of results to be presented are the mean absolute error (MAE) loss on the test set for each simulation. The results are presented in Table \ref{tab:mae_table_with_std}. The best values across different training strategies are shown in bold. Values are also highlighted in bold when their confidence intervals overlap with the lowest MAE value for a given simulation. Two conclusions can be arrived at from this set of results. Firstly, that the KL is the worst by a significant margin as it always has an MAE and standard deviation value that is atleast an order of magnitude larger than those given by the other strategies. The second observation is that while the bottleneck strategy gives the best performance in five out of eight simulations, the margin by which it leads is minimal. This suggests that the other strategies exhibit comparable efficacy in optimising for MAE, with no clear dominant strategy across the board.
 \begin{table}[H]
     \centering
     \begin{tabular}{lcccc}
@@ -214,6 +217,29 @@ To evaluate model performance, the mean absolute error (MAE) between the predict
     \label{tab:mae_table_with_std}
     \end{table}
 
+For comparison, the MAE values for the original paper are presented in Table \ref{tab:mae_table_original}. Unfortunately the original paper does not provide the spread of the MAE values, so it is not possible to compare the standard deviations of the MAE values. However, the original paper also follows the general trend of the standard, bottleneck and L1 performing similarly, with the KL strategy performing significantly worse. However, as a whole, the MAE values in this report are lower than those in the original paper, this is discussed in the next section and is likely due to the preprocessing steps taken to improve data quality that were not present in the original paper. These results refute the claim made by the original paper that the L$_1$ strategy performs better than the bottleneck strategy. The findings in this report, and indeed in those presented in the original paper, suggest that the bottleneck strategy, standard and L$_1$ strategies are comparable in terms of their ability to optimise for MAE, there is no clear dominant strategy across the board.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lcccc}
+    \hline
+    Sim & Standard & Bottleneck & L$_1$ & KL \\
+    \hline
+    Charge-3 & 1.2  & 0.99  & \textbf{0.94}  & 4.2  \\
+    Charge-2 & \textbf{49}  & 50  & 52  & 60  \\
+    r$^{-2}$-3 & 4.0 & 3.6  & \textbf{3.4} & 9.8  \\
+    r$^{-2}$-2 & 1.6  & 1.6  & \textbf{1.2}  & 9.3  \\
+    r$^{-1}$-3 & 0.051 & \textbf{0.050}  & 0.055 & 3.5   \\
+    r$^{-1}$-2 & 0.077  & \textbf{0.069}  & 0.079  & 3.5   \\
+    Spring-3 & 0.11  & 0.11  & \textbf{0.090}  & 3.8  \\
+    Spring-2 & 0.047  & 0.046  & \textbf{0.045}  & 1.7  \\
+    \hline
+    \end{tabular}
+    \caption{Mean Absolute Error (MAE) loss on the test set in the original paper. The best values across different training strategies are shown in bold}
+    \label{tab:mae_table_original}
+    \end{table}
+
+The next set of results presented are the $R^2$ values between significant edge message components and the linearly transformed true pairwise forces, averaged across all components. The results are presented in Table \ref{tab:R2}. For comparison, the $R^2$ values for the original paper are presented in Table \ref{tab:R2_original}. Example scatter plots of the edge message components against the linear transformation of the pairwise force for the different strategies of the spring 2D simulation are shown in Figure \ref{fig:scatter_plots}. It is clear that the R$_{2}$ values obtained are much lower for the bottleneck strategy and L$_{1}$ strategy which get almost perfect values in the original paper. The standard strategy in this report is found to have a significantly different value than that in the original paper which finds that in all simulations, it is very close to 0. These results are investigated in the discussion section.
     \begin{table}[H]
         \centering
         \begin{tabular}{lcccc}
@@ -232,8 +258,52 @@ To evaluate model performance, the mean absolute error (MAE) between the predict
         \hline
         \end{tabular}
         \caption{$R^2$ metric between the significant edge message components and a linear transformation of the true pairwise force. Best value across training strategy shown in bold.}
-        \label{tab:metrics_comparison}
+        \label{tab:R2}
     \end{table}
+    \begin{table}[H]
+        \centering
+        \begin{tabular}{lcccc}
+        \hline
+        Sim & Standard & Bottleneck & L$_1$ & KL \\
+        \hline
+        Charge-2 & 0.016 & \textbf{0.947} & 0.004 & 0.185 \\
+        Charge-3 & 0.013 & \textbf{0.980} & 0.002 & 0.425 \\
+        r$^{-1}$-2 & 0.000 & \textbf{1.000} & \textbf{1.000} & 0.796 \\
+        r$^{-1}$-3 & 0.000 & \textbf{1.000} & \textbf{1.000} & 0.332 \\
+        r$^{-2}$-2 & 0.004 & 0.993 & \textbf{0.990} & 0.770 \\
+        r$^{-2}$-3 & 0.002 & \textbf{0.994} & 0.977 & 0.214 \\
+        Spring-2 & 0.032 & \textbf{1.000} & \textbf{1.000} & 0.883 \\
+        Spring-3 & 0.036 & 0.995 & \textbf{1.000} & 0.214 \\
+        \hline
+        \end{tabular}
+        \caption{MAE values for different simulations. Highest value per row is in bold.}
+        \label{tab:R2_original}
+    \end{table}
+
+
+    \begin{figure}[H]
+        \centering
+        \begin{subfigure}{0.45\textwidth}
+            \includegraphics[width=\textwidth]{figs/spring_2d_standard_r2.png}
+            \caption{Spring 2D, Standard}
+        \end{subfigure}
+        \begin{subfigure}{0.45\textwidth}
+            \includegraphics[width=\textwidth]{figs/spring_2d_bottleneck_r2.png}
+            \caption{Spring 2D, Bottleneck}
+        \end{subfigure}
+        
+        \begin{subfigure}{0.45\textwidth}
+            \includegraphics[width=\textwidth]{figs/spring_2d_l1_r2.png}
+            \caption{Spring 2D, L$_1$}
+        \end{subfigure}
+        \begin{subfigure}{0.45\textwidth}
+            \includegraphics[width=\textwidth]{figs/spring_2d_kl_r2.png}
+            \caption{Spring 2D, KL}
+        \end{subfigure}
+        \caption{Scatter plots of the edge message components against the linear transformation of the pairwise force for the different strategies of the spring 2D simulation.}
+        \label{fig:scatter_plots}
+    \end{figure}
+    Next, to investigate the sparsity of the edge messages under the different training strategies, the percentage of total edge message variance across all components explained by the top $d$ components, where $d$ is the dimensionality of the problem, is calculated. The results are presented in Table \ref{tab:scarcity}. The KL and L$_1$ strategies consistently outperform the standard strategy. This suggests that the KL and L$_1$ strategies are more effective than the baseline at promoting sparsity in the edge messages. Note, the bottleneck strategy will always have, by definition, 100\% of the edge message variance explained by the top $d$ components.
     \begin{table}[H]
         \centering
         \begin{tabular}{lcccc}
@@ -251,31 +321,33 @@ To evaluate model performance, the mean absolute error (MAE) between the predict
         \hline
         \end{tabular}
         \caption{Percent of total edge message variance across all components explained by the top $d$ components, where $d$ is the dimensionality of the problem.}
-        \label{tab:metrics_comparison}
+        \label{tab:scarcity}
     \end{table}
 
 \subsection{Symbolic Regression Results}
-    \begin{table}[H]
+The next set of results relate to the symbolic distillation of the edge and node models. The edge and node models are distilled seperately using the method outlined. The edge model's distillation should yield an expression which is approximately analogous to a linear transformation of the true force, whereas the node model's distillation should yield an expression which resembles Newtons second law.
+\begin{table}[H]
         \centering
         \begin{tabular}{lcccc}
         \hline
         Sim & Standard & Bottleneck & L$_1$ & KL \\
         \hline
-        Charge-3 & 3/3 & 3/3 & 0/3 & 0/3 \\
+        Charge-3 & \textbf{3/3} & \textbf{3/3} & 0/3 & 0/3 \\
         Charge-2 & 0/2 & 1/2 & 1/2 & 0/2 \\
-        r$^{-2}$-3 & 1/3 & 3/3 & 3/3 & 0/3 \\
-        r$^{-2}$-2 & 0/2 & 2/2 & 0/2 & 1/2 \\
-        r$^{-1}$-3 & 3/3 & 3/3 & 2/3 & 3/3 \\
-        r$^{-1}$-2 & 0/2 & 2/2 & 2/2 & 2/2 \\
+        r$^{-2}$-3 & 1/3 & \textbf{3/3} & \textbf{3/3} & 0/3 \\
+        r$^{-2}$-2 & 0/2 & \textbf{2/2} & 0/2 & 1/2 \\
+        r$^{-1}$-3 & \textbf{3/3} & \textbf{3/3} & 2/3 & \textbf{3/3} \\
+        r$^{-1}$-2 & 0/2 & \textbf{2/2} & \textbf{2/2} & \textbf{2/2} \\
         Spring-3 & 0/3 & 0/3 & 2/3  & 0/3 \\
-        Spring-2 & 1/2 & 2/2 & 2/2 & 0/2 \\
+        Spring-2 & 1/2 & \textbf{2/2} & \textbf{2/2} & 0/2 \\
         \hline
         \end{tabular}
-        \caption{Successful reconstructions of the pairwise force (or acceleration) after symbolically regressing the $d$ significant components of edge model, where $d$ is the dimensionality of the problem.}
+        \caption{Successful reconstructions of the pairwise force (or acceleration) after symbolically regressing the $d$ significant components of edge model, where $d$ is the dimensionality of the problem. Experiments where all components are successfully reconstructed are highlighted in bold.}
         \label{tab:sr_edge_model_table}
     \end{table}
+From the results obtained, it is clear that the bottleneck strategy consistently outperforms the other strategies in the symbolic distillation of the edge model, the L$_1$ strategy is the next most successful, followed by the standard strategy and the KL strategy.
 
-    \noindent Example successful reconstructions of pairwise force (or acceleration) after symbolically regressing the edge model.
+\paragraph*{Example successful reconstructions} of recovering the pairwise force (or acceleration) after symbolically regressing the edge model.
     \begin{itemize}
         \item
         Spring 2d, L$_1$ (expect $\phi^{e}_i \approx \mathbf{a} \cdot (1-\frac{1}{r}) \mathbf{\Delta {r}} + b$):
@@ -293,29 +365,30 @@ To evaluate model performance, the mean absolute error (MAE) between the predict
         $$\phi^{e}_1 = = -\frac{39.3q_2(0.273\Delta x + \Delta y)}{ q_1 m_1r^3}$$
     \end{itemize}
     Here, $\mathbf{a} = (a_1, a_2)$ and $b$ are constants, $\mathbf{\Delta r} = (\Delta x, \Delta y, \Delta z)$ represents the displacement vector, $q_1, q_2$ are the charges and $m_1, m_2$ are the masses. $\phi^{e}_i$ is the $i$th component of the edge message, reflecting the interaction from body 1 to body 2. Note how the reconstruction for the shown spring 2d experiment is a linear transformation of the true pairwise force whereas the other expressions have divided through by the mass of the receiving particle, $m_1$, and thus represent the acceleration.
+
+    The results of the symbolic distillation of the node model are presented in Table \ref{tab:sr_edge_model_table}. Here, the standard strategy yields the best results, followed by the the L$_1$, bottleneck and the KL strategy.
     \begin{table}[H]
         \centering
         \begin{tabular}{lcccc}
         \hline
         Sim & Standard & Bottleneck & L$_1$ & KL \\
         \hline
-        Charge-3 & 3/3 & 0/3 & 0/3 & 1/3 \\
+        Charge-3 & \textbf{3/3} & 0/3 & 0/3 & 1/3 \\
         Charge-2 & 0/2 & 0/2 & 0/2 & 0/2 \\
-        r$^{-2}$-3 & 3/3 & 2/3 & 3/3 & 0/3 \\
+        r$^{-2}$-3 & \textbf{3/3} & 2/3 & \textbf{3/3} & 0/3 \\
         r$^{-2}$-2 & 1/2 & 1/2 & 1/2 & 0/2 \\
-        r$^{-1}$-3 & 3/3 & 3/3 & 3/3 & 0/3 \\
-        r$^{-1}$-2 & 2/2 & 2/2 & 2/2 & 1/2 \\
-        Spring-3 & 2/3 & 1/3 & 3/3  & 0/3 \\
-        Spring-2 & 2/2 & 2/2 & 2/2 & 0/2 \\
+        r$^{-1}$-3 & \textbf{3/3} & \textbf{3/3} & \textbf{3/3} & 0/3 \\
+        r$^{-1}$-2 & \textbf{2/2} & \textbf{2/2} & \textbf{2/2} & 1/2 \\
+        Spring-3 & 2/3 & 1/3 & \textbf{3/3}  & 0/3 \\
+        Spring-2 & \textbf{2/2} & \textbf{2/2} & \textbf{2/2} & 0/2 \\
         \hline
         \end{tabular}
-        \caption{Successful reconstructions of the newtons 2nd law after symbolically regressing the node model after symbolically regressing the components of the node models output.}
+        \caption{Successful reconstructions of the newtons 2nd law after symbolically regressing the node model after symbolically regressing the components of the node models output. Experiments where all components are successfully reconstructed are highlighted in bold.}
         \label{tab:sr_edge_model_table}
     \end{table}
 
 
-Example successful reconstructions of newtons 2nd law after symbolically regressing the node model
-(expect $\phi^{v}_i \approx \frac{\mathbf{a} \cdot \mathbf{\bar{e}} + b}{m_1}$, where $\bar{e}$ is the aggregated edge message and $m_1$ is the mass of the receiving particle).
+\paragraph*{Example successful reconstructions} of recovering newtons 2nd law after symbolically regressing the node model (expect $\phi^{v}_i \approx \frac{\mathbf{a} \cdot \mathbf{\bar{e}} + b}{m_1}$, where $\bar{e}$ is the aggregated edge message and $m_1$ is the mass of the receiving particle).
 \begin{itemize}
         \item
         Spring 2d, bottleneck:
@@ -338,7 +411,13 @@ Example successful reconstructions of newtons 2nd law after symbolically regress
         $$
     \end{itemize}
 
-    In some cases, the node model is a simple linear transform of the aggregated edge messages, this occurs when the edge model learns the pairwise acceleration, so the node model just acts as a sum over the individual accelerations to return the net acceleration. 
+    In some cases, the node model is a simple linear transform of the aggregated edge messages, this occurs when the edge model learns the pairwise acceleration, so the node model just acts as a sum over the individual accelerations to return the net acceleration. In other cases, like the charge 3d KL experiment and the spring 2d bottleneck experiment, the node model explicitly learns the division by the mass of the receiving particle, $m_1$, to convert the force to an acceleration.
+
+    Finally, the performance of the symbolic models are compared to the neural network models in Table \ref{tab:sr_vs_nn_table}. This is done choosing experiments where all components of the edge and node model outputs could be successfully reconstructed and comparing the MAE and standard deviation on the test set from the symbolic model against the best performing neural network model. The results show that the symbolic model out performs the neural net for the string 2D and is comparable with the neural network for the r$^{-1}$ 2D simulation. For the remaining simulations, the neural network significantly outperforms the symbolic model. It is worth noting that the constants in the symbolic model were not refit to the data as suggested in the original paper.
+    % Describe how this table was created.
+    % What was selected
+    % What was compared
+    % What was found
     \begin{table}[H]
         \centering
         \begin{tabular}{lcccc}
@@ -352,28 +431,111 @@ Example successful reconstructions of newtons 2nd law after symbolically regress
         Spring-2 & \textbf{0.0168} $\pm$ 0.001 & 0.0182 $\pm$ 0.001 \\
         \hline
         \end{tabular}
-        \caption{Symbolic Model Performance Vs Neural Network}
+        \caption{Symbolic model versus neural network, performance compared by MAE on the test set, presented as mean $\pm$ standard deviation. The best values across different models are shown in bold.}
         \label{tab:sr_vs_nn_table}
     \end{table}
 
-    \section{Discussion}
-    % Discussion point:
-% R2 failing but symbolic reconstruction succeeding …
-% Nans on the unpruned test set, squashing log var.
-% Bottleneck seeming to perform best.
-% Random seed would be good analysis to perform, this report attempted to train for longer, to run for multiple seeds would require a tradeoff with shorter hours. Loss found to keep decreasing even towards end epochs
-% Investigate NaNs
-% R1 learning eps.
-    \section{Implementation}
+\section{Discussion}
+In this section the results are discussed, both in a standalone manner and in the context of the original paper's results. 
+\subsection{Model Performance}
+% The difficulty increasing wrt to the inverse force
+To understand the results, it is first imperative to understand that the force laws simulated in this report vary in complexity. This complexity can be understood in terms of dependencies on the distance \( r \). Specifically, the spring force is linearly proportional to \( r \) whereas the orbital force laws follow \( r^{-1} \) and \( r^{-2} \) dependencies. The electrostatic force also follows a \( r^{-2} \) dependency. This leads to significant differences in how data varies across simulations, as detailed by the standard deviation of the acceleration labels in the training set (Table \ref{tab:std_table}). These variations are critical in understanding the challenges in model training and the subsequent performance outcomes.
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lcc}
+    \hline
+    Sim & Standard Deviation \\
+    \hline
+    Charge-3 & 14 \\
+    Charge-2 & 75 \\
+    r$^{-2}$-3 & 31 \\
+    r$^{-2}$-2 & 150 \\
+    r$^{-1}$-3 & 5.3 \\
+    r$^{-1}$-2 & 7.6 \\
+    Spring-3 & 15 \\
+    Spring-2 & 6.8 \\
+    \hline
+    \end{tabular}
+    \caption{Standard deviation of the acceleration labels in the training set for the different simulations.}
+    \label{tab:std_table}
+\end{table}
+The standard deviation of the accelerations, essentially predicts the order of the trained networks, sorted by their test set MAE. Table \ref{tab:std_table_2} compares the performance ranking of networks, organised by both the standard deviation of training set accelerations and their test set MAE, illustrating how acceleration variability predicts model efficacy. The results show how the standard deviation of the accelerations in the training set can predict the performance of the model on the test set. Which makes intuitive sense, it is harder for the model to learn robust features if the data varies over too large a scale. Further, it explains why the performance on the 2D data for a given force law is worse than the 3D data, in all cases except spring where the situation is reversed due to it being proportional to a positive power of $r$. Due to the higher dimensionality of the problem, there is more 'space' so there is a smaller chance any pair of particles get too close to each other and the acceleration blows up. This is why the models trained on 3D data perform better than those trained on 2D data. For the spring experiment, the larger distances between particles in 3D means that the accelerations will be larger and hence why for spring, the 2D simulation performs better.
+% Discuss the results of the MAE and std.
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lccc}
+    \toprule
+    Performance & Training Label Std. Dev. & Test Set MAE\\
+    \midrule
+    1 (\textbf{Best}) & spring-2 & spring-2 \\
+    2& r$^{-1}$-3 & r$^{-1}$-2  \\
+    3& r$^{-1}$-2 & r$^{-1}$-3 \\
+    4& spring-3 & spring-3\\
+    5& charge-3 & charge-3\\
+    6& r$^{-2}$-3 & r$^{-2}$-3\\
+    7& charge-2 & r$^{-2}$-2\\
+    8 (\textbf{Worst})& r$^{-2}$-2 & charge-2\\
+    \bottomrule
+    \end{tabular}
+    \caption{Comparative analysis of model performance, correlating the standard deviation of the acceleration labels in the training set with the mean absolute error (MAE) on the test set.}
+    \label{tab:std_table_2}
+    \end{table}
+    Note that these are standard deviations of the accelerations after the pruning preprocessing step. Such a step was not discussed in the original paper, however was essential in this reproduction. Without pruning the data of time steps that had very large velocities or accelerations, the KL training strategy was not stable with it's gradients exploding shortly into training, giving rise to nans in the loss. Further the original papers MAE's are consistently higher, despite training for twice as long on twice as much data. This likely means that the original data contained more extreme values, otherwise such a result is unexplainable. The challenges in reproducing datasets of this kind are discussed later in the report. It is worth noting that the pruning is not the only solution to handling the large accelerations. These outliers were only an issue for the KL training strategy, where the predicted log variance terms would blow up after exponentiating them to get the variance to compute the loss. One solution would be to squash the log variance term, however this was not discussed in the original paper. This would be an interesting avenue for future work. Another option would be to make use of a stronger epsilon term and see if the symbolic expressions can learn this. However, for the purposes of reproducibility, the same epsilon term that was used in the original paper was used in this report.
 
-    \section{Results}
 
-
+    % Discuss stronger eps and potential for the symbolic model to learn the eps.
+    % The nans and need for pruning, how original paper doesnt do that and how it was needed to train the KL and charge models -> investigate this.
+    % Could investigate squashing logvar, not discussed in the original paper.
+    % Discuss the loss decreasing towards the end of training, could keep training for longer.
     
+
+    % Original paper did not present standard deviations and the loss values seem to not follow intuition.
+    
+The subsequent results, as presented in Table \ref{tab:R2}, show that the $R^2$ values for the bottleneck and L$_1$ strategies are significantly lower than the nearly perfect values reported in the original study. This discrepancy can be attributed to the edge model potentially learning pairwise acceleration directly, rather than pairwise force, rather than a failure in training to learn an appropriate representation. For instance, Figure \ref{fig:scatter_plots} illustrates a scatter plot comparing the edge message components to a linear transformation of the true pairwise force versus pairwise acceleration for the model trained with the L1 regularisation strategy on the R1 2D dataset, highlighting how the low $R^2$ values could be misleading. The next point to discuss is how contrary to the original paper, which suggests the standard strategy yields almost zero $R^2$ values, the findings in this report do not support this claim. The differences likely stem from variations in the datasets used, as discussed earlier. Without access to the precise dataset from the original study, pinpointing the exact cause of this discrepancy is challenging. Moreover, in the absence of symbolic reconstructions of the edge model, it is difficult to confirm whether the model has learned the pairwise acceleration instead of the force, which could explain the lower $R^2$ values. The original paper does however state that no simulation had its force law successfully reconstructed using the standard training strategy, indicating that a separate issue might be at play. Investigating this reproducibility issue could further involve ruling out the influence of natural variance introduced by changes in the random seed. This would be the primary next step to explore given more time and resources.
+    \begin{figure}[H]
+        \centering
+        \begin{subfigure}{0.45\textwidth}
+            \includegraphics[width=\textwidth]{figs/r1_2d_force_r2.png}
+            \caption{}
+        \end{subfigure}
+        \begin{subfigure}{0.45\textwidth}
+            \includegraphics[width=\textwidth]{figs/r1_2d_accel_r2.png}
+            \caption{}
+        \end{subfigure}
+        \caption{Comparison of scatter plots of the edge message components for R1 2D, L1 experiment against: a) linear transformation of the pairwise force b) pairwise acceleration.}
+        \label{fig:scatter_plots}
+    \end{figure}
+    % Compare plot when checking force vs acceleration. The difference. 
+    
+
+The next set of results to be discussed are the sparsity values presented in the \ref{tab:metrics_comparison}. 
+% Sparsity in edge message not signficantly correlated with higher chance of symbolic reconstrucion, eg KL having sparser messages than L1 but being worse in the symbolic reconstruction. 
+While the original paper did not have any direct results which measured the sparsity of the edge messages, the general argument was that sparsity in the edge message would lead to a greater probability of successful reconstructions. 
+%   More to do with the strength of the inductive bias, agree with bottleneck and l1 being best, may be not to the same degree for edge model. Original paper did not distill node model, however it would be interesting to see if the standard model was also reproduced to be the best for that. The architecture naturally makes a powerful inductive bias for the node model to learn the identity.
+
+    Finally, the symbolic reconstructions are discussed. 
+    % Discuss how sometimes the training strategy did give the correct reconstruction, however it was the 2nd or 3rd best option, and how sticking to the selection criteria should not be done in practice.
+
+    Symbolic model vs NNs
+    % Performs increasingly worse as the force law becomes more complex, likely due to the learnt constants being incorrect, would be interesting to see the effect of refitting the constants.
+    See appendix for egs and :
+    % Interesting artifact where the r1 learned the eps, would be interesting to refit the constants, likely leading to better symbolic models.
+
+    % Interesting artifact whereby node model undid error in the edge model and in composition the model was correct.
+
+    Future work
+    % Would be interesting to perform results on multiple seeds.
+
+    % Adding more inductive biases eg newtons 3rd law and checking the results,
+    % Discussion point to try add more inductive biases, 
+
+
+\section{Implementation and Reproducibility}
+    This section outlines how the code base was structured to allow for reproducible results and where the original code base lacked..
+
     % Code base structure, data storage, seed, local environment differences.
     % Flowchart / graph.
-    
-    \section{Reproducibility}
+
     % Perhaps not just using the best model but checking if a slightly worse symbolic model was better.
     % Talk about perhaps the more sensible thing would be to distill one at a time in accordance with the framework.
     % Effect of training for fewer epochs
@@ -386,9 +548,7 @@ Example successful reconstructions of newtons 2nd law after symbolically regress
     % Future work, squash velocity, use a larger eps and see if the model can learn this, squash the log var. For data pre processing 
     % Preprocessing not in paper but got nans in kl otherwise
     % Explore purely velocity based pre pru
-    % Adding more inductive biases eg newtons 3rd law and checking the results,
-    % Discussion point to try add more inductive biases, via physical unit loss term 
-    % , NL3 etc
+    % , NL3, enforcing correctness of dimensional units.
     % Discussion point - stronger L1 or an L1 scheduler type thing.
     % Mon 
     \section{Appendix}
@@ -396,6 +556,14 @@ Example successful reconstructions of newtons 2nd law after symbolically regress
     Spring 3D, $L_1$: expect $\phi^{e}_i \approx (1-\frac{1}{r})\mathbf{a} \cdot \mathbf{\Delta r} + b$.
     
     $$\phi^{e}_1 = (0.0772r + 0.102)(0.381 \Delta x - 0.190 \Delta y + \Delta z)$$
+
+    Example of close reconstructions but 2nd was good.
+
+    Example of undoing reconstruction.
+
+    Dump of the histograms of the pruning.
+
+    
 
 \bibliographystyle{plain}  % Choose the style that suits your needs
 \bibliography{references}  
