@@ -3,7 +3,6 @@ import numpy as np
 import torch
 from torch_geometric.data import InMemoryDataset, Data
 from torch_geometric.data.dataset import _repr, files_exist
-
 from utils import get_edge_index
 import sys
 import warnings

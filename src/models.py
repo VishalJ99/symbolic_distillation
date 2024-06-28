@@ -1,10 +1,45 @@
-# TODO: generalise edge and node model architecture / abstract it to config
-# Add typing hints
+"""
+Script to define custom torch geometric message passing models.
+To add a custom model, define a class here with the following signature:
+
+```
+class CustomGNN(MessagePassing):
+    def __init__(self, *args, **kwargs):
+        super(CustomGNN, self).__init__()
+        # Define any parameters here.
+        self.param = param
+        self.edge_model = Sequential(*args, **kwargs)
+        self.node_model = Sequential(*args, **kwargs)
+
+    def message(self, x_i, x_j):
+        # Define the message function here.
+        return msg
+
+    def update(self, aggr_out, x):
+        # Define the update function here.
+        return y
+```
+After defining the model, add it to the `model_factory` function in
+`src/utils.py` to be able to specify it in the configs and use it in the
+training and testing scripts.
+
+To add option to use symbolic models for edge and node models, can follow the
+template below used in the GNN class below.
+
+TODO:
+- Training with symbolic models is not working as expected. The models are
+static throughout training. They should be differentiable as the .pytorch()
+method is used to convert them to pytorch models would expect them to be updated
+during training. Need to investigate why this is happening.
+
+- Generalise edge and node model architecture by allowing the user to specify
+the number of layers and hidden units in the config file.
+"""
+# TODO:
 import torch
 from torch_geometric.nn import MessagePassing
 from torch.nn import Sequential, Linear, ReLU
 import pickle as pkl
-import numpy as np
 
 
 class GNN(MessagePassing):
@@ -29,15 +64,17 @@ class GNN(MessagePassing):
         if symbolic_edge_pkl_path:
             with open(symbolic_edge_pkl_path, "rb") as f:
                 symbolic_edge_pkl = pkl.load(f)
-
-            self.symbolic_edge_model = symbolic_edge_pkl["model"]
-            self.important_msg_indices = symbolic_edge_pkl["important_msg_idxs"]
+                self.symbolic_edge = symbolic_edge_pkl["model"]
+                self.symbolic_edge_models = self.symbolic_edge.pytorch()
+                self.important_msg_indices = symbolic_edge_pkl[
+                    "important_msg_idxs"
+                ]
 
         if symbolic_node_pkl_path:
             with open(symbolic_node_pkl_path, "rb") as f:
                 symbolic_node_pkl = pkl.load(f)
-
-            self.symbolic_node_model = symbolic_node_pkl["model"]
+                self.symbolic_node = symbolic_node_pkl["model"]
+                self.symbolic_node_models = self.symbolic_node.pytorch()
 
         self.edge_model = Sequential(
             Linear(2 * n_f, hidden),
@@ -80,8 +117,9 @@ class GNN(MessagePassing):
             x = torch.concatenate([dr_ij, r_ij, q_i, q_j, m_i, m_j], axis=1)
 
             # Calc most important message components using pysr edge models.
-            important_msg_components = torch.tensor(
-                np.asarray(self.symbolic_edge_model.predict(x.cpu()))
+            important_msg_components = torch.stack(
+                [model(x) for model in self.symbolic_edge_models],
+                dim=1,
             ).to(x_i.device, x_i.dtype)
 
             # Construct the full msg by padding non-important comps with zeros.
@@ -101,8 +139,9 @@ class GNN(MessagePassing):
             # Get the most important components of the aggregated messages.
             aggr_out_important = aggr_out[:, self.important_msg_indices]
             x = torch.cat([x, aggr_out_important], dim=1)
-            y = torch.tensor(
-                np.asarray(self.symbolic_node_model.predict(x.cpu()))
+            y = torch.stack(
+                [model(x) for model in self.symbolic_node_models],
+                dim=1,
             ).to(x.device, x.dtype)
         else:
             x = torch.cat([x, aggr_out], dim=1)
@@ -132,9 +171,16 @@ class VarGNN(GNN):
         )
 
     def message(self, x_i, x_j, sample=False):
-        # Sample False by default since util.get_node_message_info_df
-        # Doesnt take custom arguments and just calls message method.
-        # Want to just take message as mean for plotting.
+        """
+        Important! Keep sample=False by default since
+        util.get_node_message_info_df doesnt take custom arguments and just
+        calls message method passing x_i and x_j. In that function we want
+        the messages to be sparse hence sample=False so that the mean
+        message is returned which should be 0 for the unimportant messages.
+
+        When training / testing, the forward method calls this method (via
+        propagate) with sample=True.
+        """
         x = torch.cat([x_i, x_j], dim=1)
         param_msg = self.edge_model(x)
 

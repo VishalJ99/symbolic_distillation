@@ -1,8 +1,12 @@
+"""
+Scrappy code used for generating the plots in src/eval_msgs.py and
+src/eval_node_model.py. Code modified from:
+https://github.com/MilesCranmer/
+symbolic_deep_learning/blob/master/GN_Demo_Colab.ipynb
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
-
-# TODO: Generalise these transformations functions.
 
 
 def percentile_sum(x):
@@ -49,7 +53,6 @@ def linear_transformation_3d(alpha, X, Y):
 
 
 def out_linear_transformation_2d(alpha, X):
-    """Should Y be tranposed?"""
     lincomb1 = (alpha[0] * X[:, 0] + alpha[1] * X[:, 1]) + alpha[2]
     lincomb2 = (alpha[3] * X[:, 0] + alpha[4] * X[:, 1]) + alpha[5]
 
@@ -143,9 +146,10 @@ def make_force_edge_msg_scatter(transformed_forces, most_important_msgs, dim=2):
             s=0.1,
             c="black",
         )
-        ax.set_xlabel("Transformed Forces")
-        ax.set_ylabel(f"Message Component {i+1}")
+        ax.set_xlabel("Transformed Forces", fontsize=16)
+        ax.set_ylabel(f"Message Component {i+1}", fontsize=16)
         ax.title.set_text(f"Component {i+1} R^2: {R2: .2f}")
+        ax.title.set_fontsize(16)
 
     plt.tight_layout()
     return fig, axes, R2_stats

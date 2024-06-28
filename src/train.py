@@ -285,7 +285,7 @@ def main(config):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train a DDPM model.")
+    parser = argparse.ArgumentParser(description="Main Train Script.")
     parser.add_argument(
         "config",
         type=str,

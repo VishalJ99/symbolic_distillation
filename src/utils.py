@@ -2,7 +2,6 @@ import numpy as np
 import os
 import random
 import torch
-from sklearn.model_selection import train_test_split
 from models import GNN, VarGNN
 from losses import MAELossWithL1MessageReg, MAELossWithKLMessageReg
 from transforms import RandomTranslate
@@ -10,12 +9,33 @@ from torch_geometric.data import Data
 from torch_geometric.nn import MessagePassing
 import pandas as pd
 from force_funcs import spring_force, r1_force, r2_force, charge_force
+from typing import List, Callable
 
 
-def get_edge_index(sim_fname):
+def get_edge_index(sim_fname: str) -> torch.Tensor:
     """
     Code modified from:
     https://github.com/MilesCranmer/symbolic_deep_learning/blob/master/models.py
+
+    Constructs the edge index array needed to create a torch_geometric.data.Data
+    object.
+
+    Parameters
+    ----------
+    sim_fname : str
+        The name of the simulation file.
+
+    Returns
+    -------
+    torch.Tensor
+        The edge index array.
+
+
+    Notes
+    -----
+    Takes as input the simulation file name follows convention used in
+    `simulations/run_sims.py`.
+    Eg. sim=r2_ns=2500_seed=2_n_body=8_dim=3_nt=500_dt=1e-03_data.npy
     """
     # Load sim hyper params from fname. Assumes format used by `run_sims.py`.
     sim_fname = sim_fname.split(".")[0]
@@ -46,29 +66,21 @@ def get_edge_index(sim_fname):
     return edge_index
 
 
-def get_train_val_test_split(X, Y, train_val_test_split, shuffle=True, seed=42):
+def seed_everything(seed: int) -> None:
     """
-    Split the data into train, val and test sets
+    Seeds the random number generators for reproducibility.
+    Note, this may slow down code as enforcing determinism could disable
+    some optimisations.
+
+    Parameters
+    ----------
+    seed : int
+        The seed value to use.
+
+    Returns
+    -------
+    None
     """
-    X_train, X_temp, Y_train, Y_temp = train_test_split(
-        X, Y, test_size=1 - train_val_test_split[0], random_state=seed
-    )
-    X_val, X_test, Y_val, Y_test = train_test_split(
-        X_temp,
-        Y_temp,
-        test_size=train_val_test_split[-1]
-        / (train_val_test_split[-2] + train_val_test_split[-1]),
-        random_state=seed,
-    )
-
-    train_tuple = (X_train, Y_train)
-    val_data = (X_val, Y_val)
-    test_data = (X_test, Y_test)
-
-    return train_tuple, val_data, test_data
-
-
-def seed_everything(seed):
     # Set `PYTHONHASHSEED` environment variable to the seed.
     os.environ["PYTHONHASHSEED"] = str(seed)
 
@@ -77,7 +89,7 @@ def seed_everything(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    # 5. If using CUDA, set also the below for determinism.
+    # If using CUDA, set also the below for determinism.
     if torch.cuda.is_available():
         # Sets the seed for generating random numbers for the current GPU.
         torch.cuda.manual_seed(seed)
@@ -88,9 +100,18 @@ def seed_everything(seed):
         torch.backends.cudnn.benchmark = False
 
 
-def make_dir(dir_path):
+def make_dir(dir_path: str) -> None:
     """
     Makes a directory if it does not exist. Otherwise, logs a message and exits.
+
+    Parameters
+    ----------
+    dir_path : str
+        The path to the directory to create.
+
+    Returns
+    -------
+    None
     """
     try:
         os.makedirs(dir_path)
@@ -99,10 +120,24 @@ def make_dir(dir_path):
         exit(1)
 
 
-def transforms_factory(transform_key, transform_params):
+def transforms_factory(
+    transform_key: str, transform_params: dict
+) -> torch.nn.Module:
     """
     Takes in a dictionary with keys as the transform names and values as the
     transform parameters and returns a transforms.Compose object.
+
+    Parameters
+    ----------
+    transform_key : str
+        The key for the transform to use.
+    transform_params : dict
+        The parameters for the transform.
+
+    Returns
+    -------
+    torch.nn.Module
+        The transform object.
     """
     transforms_dict = {
         "random_translate": RandomTranslate,
@@ -112,10 +147,22 @@ def transforms_factory(transform_key, transform_params):
     return transform
 
 
-def loss_factory(loss, loss_params):
+def loss_factory(loss: str, loss_params: dict) -> torch.nn.Module:
     """
     Takes in a dictionary with keys as the loss names and values as the
     loss parameters and returns a loss function.
+
+    Parameters
+    ----------
+    loss : str
+        The name of the loss function to use.
+    loss_params : dict
+        The parameters for the loss function.
+
+    Returns
+    -------
+    torch.nn.Module
+        The loss function object.
     """
     loss_dict = {
         "maeloss+l1reg": MAELossWithL1MessageReg,
@@ -126,10 +173,23 @@ def loss_factory(loss, loss_params):
     return loss_fn
 
 
-def model_factory(model, model_params):
+def model_factory(model: str, model_params: dict) -> torch.nn.Module:
     """
     Takes in a dictionary with keys as the model names and values as the
     model parameters and returns a model object.
+
+    Parameters
+    ----------
+    model : str
+        The name of the model to use.
+
+    model_params : dict
+        The parameters for the model.
+
+    Returns
+    -------
+    torch.nn.Module
+        The model object.
     """
     model_dict = {
         "gnn": GNN,
@@ -139,7 +199,23 @@ def model_factory(model, model_params):
     return model
 
 
-def force_factory(sim):
+def force_factory(sim: str) -> Callable:
+    """
+    TODO: Modify this to contain logic which swaps force to acceleration.
+    Returns the force function for a given simulation.
+    Used by src/eval_msgs.py when creating the edge message and transformed
+    force correlation plots.
+
+    Parameters
+    ----------
+    sim : str
+        The name of the simulation.
+
+    Returns
+    -------
+    function
+        The force function.
+    """
     force_dict = {
         "spring": spring_force,
         "r1": r1_force,
@@ -150,7 +226,42 @@ def force_factory(sim):
     return force_fnc
 
 
-def get_node_message_info_dfs(graph: Data, model: MessagePassing, dim: int):
+def get_node_message_info_dfs(
+    graph: Data, model: MessagePassing, dim: int
+) -> List[pd.DataFrame]:
+    """
+    Extracts the node features and messages for each edge in the graph.
+    Creates dataframes that are used by src/eval_msgs.py and
+    src/eval_node_model.py to symbolically regress the edge and node models.
+    Adds extra columns for the relative distance between the nodes for
+    convenience.
+
+    Based on the code in src/models.py, the graph networks are initialised with
+    the default value for the flow parameter, therefore, bodies enumerated by
+    the subscript 1 are the recieving nodes and bodies enumerated by the
+    subscript 2 are the sending nodes. Relative distances point from the sending
+    to the recieving node.
+
+    Parameters
+    ----------
+    graph : Data
+        The graph object containing the sample edge data to construct the
+        dataframes.
+
+    model : MessagePassing
+        The message passing model.
+
+    dim : int
+        The dimension of the simulation.
+
+    Returns
+    -------
+    pd.DataFrame
+        The dataframe containing the node features and messages for each edge.
+
+    pd.DataFrame
+        The dataframe containing the output of the node models.
+    """
     # Get node features.
     s = graph.x[graph.edge_index[0]]  # sending nodes
     r = graph.x[graph.edge_index[1]]  # receiving nodes
@@ -182,11 +293,12 @@ def get_node_message_info_dfs(graph: Data, model: MessagePassing, dim: int):
     x_columns += ["e%d" % (k,) for k in range(msg.shape[-1])]
 
     # Add the label columns.
-    y_columns = ["a%d" % (k,) for k in range(1, pred.shape[-1]+1)]
+    y_columns = ["a%d" % (k,) for k in range(1, pred.shape[-1] + 1)]
 
     # Save dataframe containing all edge information.
-    df_x = pd.DataFrame(data=all_x_info.cpu().detach().numpy(),
-                        columns=x_columns)
+    df_x = pd.DataFrame(
+        data=all_x_info.cpu().detach().numpy(), columns=x_columns
+    )
 
     # Save dataframe containing the output of the node models.
     df_y = pd.DataFrame(data=pred.cpu().detach().numpy(), columns=y_columns)
@@ -206,7 +318,35 @@ def get_node_message_info_dfs(graph: Data, model: MessagePassing, dim: int):
     return df_x, df_y
 
 
-def debug_logs(graph, pred, train_loss_components_dict, loss):
+def debug_logs(
+    graph: Data,
+    pred: torch.Tensor,
+    train_loss_components_dict: dict,
+    loss: torch.Tensor,
+) -> None:
+    """
+    Used in the training loop for debugging.
+    Prints the first graph in the input, labels and predictions along with
+    the various loss terms.
+
+    Parameters
+    ----------
+    graph : Data
+        The graph data object returned by the DataLoader in the training loop.
+
+    pred : torch.Tensor
+        The model predictions.
+
+    train_loss_components_dict : dict
+        The dictionary containing the loss components.
+
+    loss : torch.Tensor
+        The total loss.
+
+    Returns
+    -------
+    None
+    """
     print("Node Data for First Graph in Batch:")
     print(graph.x[: graph.ptr[1]])
 
@@ -223,7 +363,21 @@ def debug_logs(graph, pred, train_loss_components_dict, loss):
     print(loss.item())
 
 
-def calc_summary_stats(data):
+def calc_summary_stats(data: np.ndarray) -> dict:
+    """
+    Calculates the summary statistics for the input data.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        The input data.
+
+    Returns
+    -------
+    dict
+        The summary statistics.
+    """
+
     summary_stats = {
         "Mean": float(np.mean(data)),
         "Standard Deviation": float(np.std(data)),

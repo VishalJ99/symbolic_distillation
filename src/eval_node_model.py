@@ -153,7 +153,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "input_csv_y", type=str, help="Path to the node message CSV file"
+        "input_csv_y", type=str, help="Path to the node output CSV file"
     )
 
     parser.add_argument(
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--samples",
         type=int,
-        default=5000,
+        default=1000,
         help="Number of samples to use for fitting, default=5000",
     )
 

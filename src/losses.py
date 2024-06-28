@@ -1,7 +1,31 @@
+"""
+Script to define custom loss functions.
+To add a loss function, define a class here with the following signature:
+```
+class CustomLoss(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super(CustomLoss, self).__init__()
+        # Define any parameters here.
+        self.param = param
+
+    def forward(self, input, target, model=None):
+        # Define the loss function here.
+        # Return the total loss and any additional parameters as a dictionary.
+        return total_loss, params
+```
+The params returned by the forward function should be a dictionary containing
+any additional information that needs to be logged or saved during training.
+For example, the L1 norm of the messages in the graph.
+
+After defining the loss function, add it to the `loss_factory` function in
+`src/utils.py` to be able to specify it in the configs and
+use it in the training and testing scripts.
+"""
 import torch
 import torch.nn as nn
 from torch_geometric.data import Batch
 from torch_geometric.nn import MessagePassing
+from typing import List
 
 
 class MAELossWithL1MessageReg(nn.Module):
@@ -14,7 +38,7 @@ class MAELossWithL1MessageReg(nn.Module):
         input: Batch,
         target: torch.tensor,
         model: MessagePassing = None,
-    ):
+    ) -> List[torch.tensor, dict]:
         total_loss = 0
 
         # Calculate the MAE.
@@ -60,7 +84,7 @@ class MAELossWithKLMessageReg(nn.Module):
         input: Batch,
         target: torch.tensor,
         model: MessagePassing = None,
-    ):
+    ) -> List[torch.tensor, dict]:
         total_loss = 0
 
         # Calculate the MAE.
@@ -73,7 +97,6 @@ class MAELossWithKLMessageReg(nn.Module):
         total_loss += base_loss
 
         if self.reg_weight:
-            # TODO: is this the forward / backward KL divergence?
             # Compute the KL div of the messages with a standard normal dist.
             s = input.x[input.edge_index[0]]  # sending / source nodes
             r = input.x[input.edge_index[1]]  # recieving / target nodes

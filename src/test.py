@@ -1,15 +1,17 @@
-import argparse
+# Need to import juliacall before torch to avoid segfault issue.
+# This is relevant when testing using symbolic pysr models.
+import juliacall
 import os
+os.environ["PYTHON_JULIACALL_HANDLE_SIGNALS"] = "yes"
+import argparse
 import json
 import yaml
 from accelerate import Accelerator
 import torch
 from torch_geometric.loader import DataLoader
 from torch.utils.data import Subset
-
-import pandas as pd
 from tqdm import tqdm
-
+import pandas as pd
 from datasets import ParticleDynamicsDataset
 from utils import (
     make_dir,
@@ -152,7 +154,9 @@ def main(config):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Test a DDPM model.")
+    parser = argparse.ArgumentParser(
+        description="Test a torch geometric message passing model."
+    )
     parser.add_argument(
         "config",
         type=str,
