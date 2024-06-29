@@ -25,3 +25,4 @@ report*
 local_vel_accel_dists*
 !report/figs
 !report/main.tex
+!setup.sh
