@@ -31,15 +31,17 @@ The following scripts are available in the `src` directory:
     python simulations/run_sims.py <sim> <output_dir> [--dim] [--nt] [--ns] [--n] [--seed]
     ```
     Arguments:
-    - `sim`: The force law used in the simulation for example `spring`. See `utils.force_factory` for valid options.
+    - `sim`: The force law used in the simulation for example `spring`. See `simuations/simulate.py` or `sim_sets` dictionary for valid options.
     - `output_dir`: Path to the output directory where the data will be saved.
+    - `--n`: The number of bodies in the simulation. Default is 4.
     - `--dim`: The dimensionality of the simulation. Default is 2.
     - `--nt`: The number of time steps in the simulation. Default is 1000.
     - `--ns`: The number of simulations to run. Default is 10000.
-    - `--n`: The number of bodies in the simulation. Default is 4.
     - `--seed`: The seed for the random number generator. Default is 1.
 
-    The output of the script will be a directory containing the data in the format specified in the dataset structure section below.
+    The output of the script will be two npy files saved in the output directory. The first data file will contain the positions, velocities, charges and mass of the particles of all the simulations at each time step and the second file will contain the corresponding accelerations. The data file will be of shape (ns, nt, n, 2*dim+2) and the acceleration file will be of shape (ns, nt, n, dim).
+
+    Note, this is just a wrapper script to call `simulations/simulate.py` with the specified arguments. The `simulate.py` script can be used directly to run a single simulation, it is the same code as was used to generate the data for the experiments in the original paper and is taken from the [original repository](https://github.com/MilesCranmer/symbolic_deep_learning/blob/master/simulate.py)
 
 - `src/train.py`: 
 
@@ -235,10 +237,14 @@ docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_
 
 
 
+## Running the full pipeline for other experiments.
 
-## Running the full pipeline for other experiments.1`2
+To run the experiments described in the report, simply repeat the steps above and create full sized datasets as described in the report. Currently, the following arguments for the `sim` parameter are supported: `spring`, `r1`, `r2` and `charge`. The report used the argument for the seed parameter as follows: `seed=1` for the training set, `seed=2` for the validation set and `seed=3` for the test set. 
+
+It is best to use the commands above to generate the data to guarantee the correct structure and naming. Simply change the arguments to the `run_sims.py` script to generate the desired dataset, however as long as the following structure is maintained, the training and testing scripts will work with any dataset.
+
 ### Dataset structure
-Note, regardless of how the dataset is generated, it needs to be created in the following directory structure:
+The train and testing scripts expect the data dir passed to follow a specific structure and naming convention shown below. The data directory should contain subdirectories for the train, val and test sets. Each of these directories should contain a `raw` directory which contains the data and acceleration files. The data files should be named in the following format:
 
 ```
 data
@@ -254,6 +260,8 @@ data
         └── raw
             ...
 ```
-They also need to be named in the same way as the example above. The *_data.npy file contains a 4D array of the data, with the first dimension being the number of simulations, the second being the number of time steps, and the third being the number of bodies and the last dimension containing the features of the bodies. The *_accel_data.npy file contains the acceleration data for the same simulations and is of the same shape, except the last dimension which will be 2 or 3 depending on the dimension of the data.
 
-### Config files
+The *_data.npy file contains a 4D array of the data, with the first dimension being the number of simulations, the second being the number of time steps, and the third being the number of bodies and the last dimension containing the features of the bodies. The *_accel_data.npy file contains the acceleration data for the same simulations and is of the same shape, except the last dimension which will be 2 or 3 depending on the dimension of the data.
+
+### Train and Test Configs
+Depending on which strategy one wishes to train a model under `standard`, `bottleneck`, `l1` or `kl`, for 2 or 3 dimensions, the premade config files from `config/template_train_configs` and `config/template_test_configs` can be used. Simply fill in the paths to the datasets, the output paths and the model weight paths where indicated.
