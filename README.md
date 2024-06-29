@@ -21,7 +21,7 @@ source setup.sh
 docker build -t vj279_project .
 ```
 ## Scripts
-The following scripts are available in the `src` directory:
+The following scripts are available:
 - `simulations/run_sims.py`:
 
     Runs a simulation and saves the data to a specified directory.
