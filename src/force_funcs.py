@@ -21,10 +21,6 @@ def spring_force(df: pd.DataFrame, eps: float = 1e-2) -> np.ndarray:
     Assumes structure of dataframe returned by the first output of the
     `get_node_message_info_dfs` function in src/utils.py.
 
-    TODO:
-    Remove eps, there is no division by r here... No risk of division by zero.
-    Was in the original code, so kept it here.
-
     Parameters
     ----------
     df : pd.DataFrame

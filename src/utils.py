@@ -216,13 +216,26 @@ def force_factory(sim: str) -> Callable:
     function
         The force function.
     """
+    
     force_dict = {
         "spring": spring_force,
         "r1": r1_force,
         "r2": r2_force,
         "charge": charge_force,
     }
-    force_fnc = force_dict[sim]
+    try:
+        force_fnc = force_dict[sim]
+
+    except KeyError:
+        print(
+            f"Force function for simulation: {sim} not found. "
+            "Please choose from: "
+            f"{list(force_dict.keys())}\n"
+            "Alternatively, add the force function to force_funcs.py and update "
+            "the force_dict in this utils.force_factory function.\n"
+            "Exiting..."
+        )
+        exit(1)
     return force_fnc
 
 

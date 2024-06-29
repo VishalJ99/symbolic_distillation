@@ -1,0 +1,20 @@
+output_dir: test_runs/spring_2d_l1
+tqdm: true
+quick_test: false
+save_messages: true
+message_save_limit: 1000
+data_dir: data/spring_2d
+test_batch_size: 1024
+prune_outliers: 99.99
+model_weights_path: train_runs/spring_2d_l1/model_weights/best_model.pt
+model: vargnn
+model_params:
+  n_f: 6
+  msg_dim: 100
+  ndim: 2
+  hidden: 300
+  aggr: add
+loss: maeloss+l1reg
+loss_params:
+  reg_weight: 0
+

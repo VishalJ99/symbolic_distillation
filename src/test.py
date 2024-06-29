@@ -142,7 +142,7 @@ def main(config):
 
     # Save test results and messages if required
     if config["save_messages"]:
-        print("[INFO] Saving node messages...")
+        print("[INFO] Saving edge messages and node model outputs...")
         df_x = pd.concat(df_x_list)
         node_message_save_path = os.path.join(
             sr_csv_dirpath, "edge_messages.csv"

@@ -79,6 +79,7 @@ def main(input_csv_x, input_csv_y, output_dir, samples=5000):
         elementwise_loss="L1DistLoss()",
         niterations=100,
         binary_operators=["+", "-", "*", "/"],
+        random_state=42,
     )
 
     node_model.fit(X_train, Y_train)
@@ -149,11 +150,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "input_csv_x", type=str, help="Path to the edge message CSV file"
+        "edge_message_csv", type=str, help="Path to the edge message CSV file"
     )
 
     parser.add_argument(
-        "input_csv_y", type=str, help="Path to the node output CSV file"
+        "node_output_csv", type=str, help="Path to the node output CSV file"
     )
 
     parser.add_argument(
@@ -172,8 +173,8 @@ if __name__ == "__main__":
     os.makedirs(args.output_dir, exist_ok=True)
 
     main(
-        args.input_csv_x,
-        args.input_csv_y,
+        args.edge_message_csv,
+        args.node_output_csv,
         args.output_dir,
         args.samples,
     )

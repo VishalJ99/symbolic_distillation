@@ -25,7 +25,7 @@ import torch
 import torch.nn as nn
 from torch_geometric.data import Batch
 from torch_geometric.nn import MessagePassing
-from typing import List
+from typing import Tuple, Dict
 
 
 class MAELossWithL1MessageReg(nn.Module):
@@ -38,7 +38,7 @@ class MAELossWithL1MessageReg(nn.Module):
         input: Batch,
         target: torch.tensor,
         model: MessagePassing = None,
-    ) -> List[torch.tensor, dict]:
+    ) -> Tuple[torch.tensor, Dict[str, torch.Tensor]]:
         total_loss = 0
 
         # Calculate the MAE.
@@ -84,7 +84,7 @@ class MAELossWithKLMessageReg(nn.Module):
         input: Batch,
         target: torch.tensor,
         model: MessagePassing = None,
-    ) -> List[torch.tensor, dict]:
+    ) -> Tuple[torch.tensor, Dict[str, torch.Tensor]]:
         total_loss = 0
 
         # Calculate the MAE.

@@ -3,19 +3,18 @@ import numpy as np
 import argparse
 from simulate import SimulationDataset
 
+sim_sets = {
+    "r1": {"dt": 5e-3},
+    "r2": {"dt": 1e-3},
+    "spring": {"dt": 1e-2},
+    "string": {"dt": 1e-2},
+    "charge": {"dt": 1e-3},
+    "superposition": {"dt": 1e-3},
+    "damped": {"dt": 2e-2},
+    "discontinuous": {"dt": 1e-2},
+}
 
 def main(sim, n, dim, nt, ns, seed, output_dir):
-    sim_sets = {
-        "r1": {"dt": 5e-3},
-        "r2": {"dt": 1e-3},
-        "spring": {"dt": 1e-2},
-        "string": {"dt": 1e-2},
-        "charge": {"dt": 1e-3},
-        "superposition": {"dt": 1e-3},
-        "damped": {"dt": 2e-2},
-        "discontinuous": {"dt": 1e-2},
-    }
-
     # Fetch hand picked dt for the sim.
     dt = sim_sets[sim]["dt"]
 
@@ -39,7 +38,8 @@ def main(sim, n, dim, nt, ns, seed, output_dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run simulation sets.")
-    parser.add_argument("sim", type=str, help="Simulation type")
+    parser.add_argument("sim", type=str, help="Simulation type",
+                        choices=list(sim_sets.keys()))
     parser.add_argument(
         "output_dir",
         type=str,

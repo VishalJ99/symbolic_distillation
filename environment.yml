@@ -1,30 +1,28 @@
-name: vj279_project
+name: vj279_project_env
 channels:
   - defaults
   - conda-forge
 dependencies:
-  - python
+  - python=3.12.3
   - black
   - flake8
   - pre-commit
   - pytest
-  - jax
-  - jaxlib
   - matplotlib
   - matplotlib-inline
   - matplotlib-venn
   - numpy
   - tqdm
-  - torch
   - celluloid
   - pip
   - pip:
     - icecream
-    - torch_scatter
-    - torch_sparse
-    - torch_geometric
+    - torch
+    - jax
+    - jaxlib
     - wandb
     - accelerate
     - pandas
     - imageio
+    - pysr
 

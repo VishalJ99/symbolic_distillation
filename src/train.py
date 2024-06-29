@@ -258,30 +258,30 @@ def main(config):
             )
             print(f"Model saved at epoch {epoch+1}..")
 
-        if config["save_messages"]:
-            # Save node features and msgs for each edge in the val set as a df.
-            pbar = (
-                tqdm(val_loader, desc="Saving node messages")
-                if config["tqdm"]
-                else val_loader
-            )
-            msgs_recorded = 0
-            df_list = []
-            for graph in pbar:
-                # Only record 10k messages per epoch to avoid large file sizes.
-                while msgs_recorded < 10000:
-                    df, _ = get_node_message_info_dfs(
-                        graph, model, dim=(graph.x.shape[1] - 2) // 2
-                    )
-                    msgs_recorded += len(df)
-                    df_list.append(df)
+            if config["save_messages"]:
+                # Save node features and msgs for each edge in the val set as a df.
+                pbar = (
+                    tqdm(val_loader, desc="Saving node messages")
+                    if config["tqdm"]
+                    else val_loader
+                )
+                msgs_recorded = 0
+                df_list = []
+                for graph in pbar:
+                    # Only record 10k messages per epoch to avoid large file sizes.
+                    while msgs_recorded < config["message_save_limit"]:
+                        df, _ = get_node_message_info_dfs(
+                            graph, model, dim=(graph.x.shape[1] - 2) // 2
+                        )
+                        msgs_recorded += len(df)
+                        df_list.append(df)
 
-            df = pd.concat(df_list)
-            node_message_save_path = os.path.join(
-                messages_dir_path, f"node_messages_epoch_{epoch}.csv"
-            )
+                df = pd.concat(df_list)
+                node_message_save_path = os.path.join(
+                    messages_dir_path, f"node_messages_epoch_{epoch}.csv"
+                )
 
-            df.to_csv(node_message_save_path, index=False)
+                df.to_csv(node_message_save_path, index=False)
 
 
 if __name__ == "__main__":

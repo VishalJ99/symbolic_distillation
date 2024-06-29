@@ -1,0 +1,22 @@
+output_dir: test_runs/spring_2d_l1_symbolic
+tqdm: true
+quick_test: false
+save_messages: true
+message_save_limit: 1000
+data_dir: data/spring_2d
+test_batch_size: 1024
+prune_outliers: 99.99
+model_weights_path: train_runs/spring_2d_l1/model_weights/best_model.pt
+model: gnn
+model_params:
+  n_f: 6
+  msg_dim: 100
+  ndim: 2
+  hidden: 300
+  aggr: add
+  symbolic_edge_pkl_path: test_runs/spring_2d_l1/msg_eval/symbolic_edge.pkl
+  symbolic_node_pkl_path: test_runs/spring_2d_l1/node_eval/symbolic_node.pkl
+loss: maeloss+l1reg
+loss_params:
+  reg_weight: 0
+

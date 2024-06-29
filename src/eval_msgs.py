@@ -29,6 +29,9 @@ def main(input_csv, output_dir, sim, samples, eps=1e-2, no_sr=False):
     # Ensure the output directory exists.
     os.makedirs(output_dir, exist_ok=True)
 
+    # Check if valid force function passed.
+    force_fnc = force_factory(sim)  # Throws error if invalid sim passed.
+
     # Determine dimension based on columns present.
     dim = 3 if "z1" in df.columns else 2
     pos_cols = ["dx", "dy"] + (["dz"] if dim == 3 else [])
@@ -61,8 +64,7 @@ def main(input_csv, output_dir, sim, samples, eps=1e-2, no_sr=False):
     most_important_msgs_idxs = np.argsort(msgs_std)[-dim:]
     most_important_msgs = msgs_array[:, most_important_msgs_idxs]
 
-    # Calculate forces.
-    force_fnc = force_factory(sim)
+    # Calculate the expected forces, i.e. the 'labels'.
     expected_forces = force_fnc(df, eps)
 
     # Find the best linear transformation.
@@ -139,6 +141,7 @@ def main(input_csv, output_dir, sim, samples, eps=1e-2, no_sr=False):
             elementwise_loss="L1DistLoss()",
             niterations=100,
             binary_operators=["+", "-", "*", "/"],
+            random_state=42,
         )
         # Fit the symbolic regression model.
         edge_model.fit(X_train, Y_train)
@@ -214,12 +217,11 @@ def main(input_csv, output_dir, sim, samples, eps=1e-2, no_sr=False):
 
 
 if __name__ == "__main__":
-    # force_key_list = list(force_dict.keys())
     parser = argparse.ArgumentParser(
         description="Process edge messages and plot transformations."
     )
     parser.add_argument(
-        "input_csv", type=str, help="Path to the input node message CSV file"
+        "edge_message_csv", type=str, help="Path to the input edge message CSV file"
     )
     parser.add_argument(
         "output_dir", type=str, help="Directory to save outputs"
@@ -247,7 +249,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(
-        args.input_csv,
+        args.edge_message_csv,
         args.output_dir,
         args.sim,
         args.samples,
