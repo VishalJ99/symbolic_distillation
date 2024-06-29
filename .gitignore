@@ -16,3 +16,12 @@ machine.file*
 *.out
 run_job.sh
 terminal_logs
+*.sh
+test_runs*
+hall_of_fame*
+*csv
+*tex
+report*
+local_vel_accel_dists*
+!report/figs
+!report/main.tex

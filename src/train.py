@@ -4,7 +4,7 @@ import wandb
 import yaml
 from accelerate import Accelerator
 import torch
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import Compose
 from torch.utils.data import Subset
 from torch.optim.lr_scheduler import OneCycleLR
@@ -17,8 +17,11 @@ from utils import (
     transforms_factory,
     model_factory,
     loss_factory,
-    get_node_message_info_df,
+    get_node_message_info_dfs,
+    debug_logs,
 )
+
+import math
 
 
 def main(config):
@@ -35,7 +38,7 @@ def main(config):
 
     if config["save_messages"]:
         # Create output directory to save messages during training.
-        messages_dir_path = os.path.join(output_dir, "training_messages")
+        messages_dir_path = os.path.join(output_dir, "train_messages")
         make_dir(messages_dir_path)
 
     if os.path.exists(".git"):
@@ -72,6 +75,7 @@ def main(config):
     else:
         augmentations = None
 
+    # Initialise pre-transforms if specified in the configuration.
     if "pre_transforms" in config:
         pre_transforms = Compose(
             transforms_factory(k, v)
@@ -85,11 +89,16 @@ def main(config):
     val_dir = os.path.join(config["data_dir"], "val")
 
     train_dataset = ParticleDynamicsDataset(
-        root=train_dir, transform=augmentations, pre_transform=pre_transforms
+        root=train_dir,
+        transform=augmentations,
+        pre_transform=pre_transforms,
+        prune_outliers=config["prune_graphs"],
     )
 
     val_dataset = ParticleDynamicsDataset(
-        root=val_dir, pre_transform=pre_transforms
+        root=val_dir,
+        pre_transform=pre_transforms,
+        prune_outliers=config["prune_graphs"],
     )
 
     if config["quick_test"]:
@@ -113,9 +122,15 @@ def main(config):
     model = model_factory(config["model"], config["model_params"])
 
     # Load state dict if specified in the config.
-    if config["model_state_dict"]:
-        model.load_state_dict(torch.load(config["model_state_dict"]))
+    if config["model_state_path"]:
+        model.load_state_dict(torch.load(config["model_state_path"]))
         print("[INFO] Loaded model state dict...")
+    else:
+        print(f"[INFO] Saving seed model weights to {weights_dir_path}...")
+        torch.save(
+            model.state_dict(),
+            os.path.join(weights_dir_path, "seed_model.pt"),
+        )
 
     # Initialise the optimiser.
     total_epochs = config["epochs"]
@@ -159,10 +174,11 @@ def main(config):
             if config["tqdm"]
             else train_loader
         )
-        for graph in train_loader_iter:
+        for idx, graph in enumerate(train_loader_iter):
             optim.zero_grad()
             pred = model(graph)
-            loss = loss_fn(graph, pred, model)
+            # TODO: Handle saving of params dict...
+            loss, _ = loss_fn(graph, pred, model)
 
             accelerator.backward(loss)
             optim.step()
@@ -170,13 +186,23 @@ def main(config):
 
             total_train_loss += loss.item()
             num_train_items += 1
-
             avg_train_loss = total_train_loss / num_train_items
+
+            if config["debug"]:
+                debug_logs(graph, pred, loss, _)
+
+                user_input = input("[DEBUG] Continue training? (y/n): ")
+                if user_input == "n":
+                    exit(1)
+
+            if math.isnan(avg_train_loss):
+                print("[INFO] Training loss is NaN. Exiting...")
+                exit(1)
 
             if config["tqdm"]:
                 train_loader_iter.set_postfix(avg_train_loss=avg_train_loss)
 
-        print(f"Average training loss for Epoch: {avg_train_loss}")
+        print(f"[INFO] Average training loss for Epoch: {avg_train_loss}")
 
         if config["wandb"]:
             wandb.log({"avg_train_loss": avg_train_loss})
@@ -193,16 +219,20 @@ def main(config):
             )
             for graph in val_loader_iter:
                 pred = model(graph)
+                val_loss, _ = loss_fn(graph, pred, model)
 
-                val_loss = loss_fn(graph, pred, model).item()
-
-                total_val_loss += val_loss
+                total_val_loss += val_loss.item()
                 num_val_items += 1
                 avg_val_loss = total_val_loss / num_val_items
+
                 if config["tqdm"]:
                     val_loader_iter.set_postfix(avg_val_loss=avg_val_loss)
 
-            print(f"Average validation loss for Epoch: {avg_val_loss}")
+            print(f"[INFO] Average validation loss for Epoch: {avg_val_loss}")
+
+            if math.isnan(avg_val_loss):
+                print("[INFO] Validation loss is NaN. Exiting...")
+                exit(1)
 
             if config["wandb"]:
                 wandb.log({"avg_val_loss": avg_val_loss})
@@ -228,34 +258,34 @@ def main(config):
             )
             print(f"Model saved at epoch {epoch+1}..")
 
-        if config["save_messages"]:
-            # Save node features and msgs for each edge in the val set as a df.
-            pbar = (
-                tqdm(val_loader, desc="Saving node messages")
-                if config["tqdm"]
-                else val_loader
-            )
-            msgs_recorded = 0
-            df_list = []
-            for graph in pbar:
-                # Only record 10k messages per epoch to avoid large file sizes.
-                while msgs_recorded < 10000:
-                    df = get_node_message_info_df(
-                        graph, model, dim=(graph.x.shape[1] - 2) // 2
-                    )
-                    msgs_recorded += len(df)
-                    df_list.append(df)
+            if config["save_messages"]:
+                # Save node features and msgs for each edge in the val set as a df.
+                pbar = (
+                    tqdm(val_loader, desc="Saving node messages")
+                    if config["tqdm"]
+                    else val_loader
+                )
+                msgs_recorded = 0
+                df_list = []
+                for graph in pbar:
+                    # Only record 10k messages per epoch to avoid large file sizes.
+                    while msgs_recorded < config["message_save_limit"]:
+                        df, _ = get_node_message_info_dfs(
+                            graph, model, dim=(graph.x.shape[1] - 2) // 2
+                        )
+                        msgs_recorded += len(df)
+                        df_list.append(df)
 
-            df = pd.concat(df_list)
-            node_message_save_path = os.path.join(
-                messages_dir_path, f"node_messages_epoch_{epoch}.csv"
-            )
+                df = pd.concat(df_list)
+                node_message_save_path = os.path.join(
+                    messages_dir_path, f"node_messages_epoch_{epoch}.csv"
+                )
 
-            df.to_csv(node_message_save_path, index=False)
+                df.to_csv(node_message_save_path, index=False)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train a DDPM model.")
+    parser = argparse.ArgumentParser(description="Main Train Script.")
     parser.add_argument(
         "config",
         type=str,
@@ -267,3 +297,4 @@ if __name__ == "__main__":
         config = yaml.safe_load(f)
 
     main(config)
+    print("[SUCCESS] Training complete.")

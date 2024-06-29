@@ -1,10 +1,25 @@
+"""
+Script defining custom transforms for PyTorch Geometric data objects.
+To add a custom transform, define a class here with the following signature:
+```
+class CustomTransform(BaseTransform):
+    def __init__(self, *args, **kwargs):
+        super(CustomTransform, self).__init__()
+        # Define any parameters here.
+        self.param = param
+
+    def forward(self, data_obj: Data) -> Data:
+        # Define the transformation here.
+        return transformed_data_object
+
+After defining the transform, add it to the `transform_factory` function in
+`src/utils.py` to be able to specify it in the configs and use it in the
+training and testing scripts.
+"""
 from typing import Tuple
 import torch
 from torch_geometric.data import Data
 from torch_geometric.transforms import BaseTransform
-
-# TODO: Add random rotation as force laws based on distance between particles
-# are also invariant wrt to rotations as well as translations.
 
 
 class RandomTranslate(BaseTransform):
@@ -17,27 +32,23 @@ class RandomTranslate(BaseTransform):
     The translation offsets for each dimension are sampled from a normal dist
     centered at zero with a standard deviation defined by the 'scale' parameter.
 
-    Attributes:
-        scale (float):  The standard deviation of the normal distribution from
-                        which the translation offsets are sampled.
-
-        dims (Tuple[int, int]): The dimensions (indices of features) along which
-                                the translation is applied.
-                                Default is (0, 1) for 2D spatial data.
+    Code modified from:
+    https://github.com/MilesCranmer/symbolic_deep_learning/blob/master/models.py
     """
 
-    def __init__(self, scale: float, dims: Tuple[int, int] = (0, 1)) -> None:
+    def __init__(self, scale: float, dims: Tuple[int, ...] = (0, 1)) -> None:
         """
-        Sets the class attributes for the random translation transformation.
+        Sets the scale of the random translation and the dimensions to be
+        translated.
 
         Parameters:
         ----------
-            scale (float):  The standard deviation of the normal distribution
-                            from which the translation offsets are sampled.
+        scale: float
+            The standard deviation of the normal distribution used to sample
+            the translation offsets.
 
-            dims (Tuple[int, int]): The dimensions (indices of features) along
-                                    which the translation is applied.
-                                    Default is (0, 1) for 2D spatial data.
+        dims: Tuple[int, ...]
+            The dimensions of the node features to be translated.
         """
         self.scale = scale
         self.dims = dims
@@ -45,16 +56,16 @@ class RandomTranslate(BaseTransform):
     def forward(self, data: Data) -> Data:
         """
         Applies the random translation transformation to the node features.
-        Assumes that dims correctly indexes the spatial dimensions of the
-        node features.
 
         Parameters:
-            data (Data): A graph data object from PyTorch Geometric.
-            with node features as the 'x' attribute.
-
+        ----------
+        data: Data
+            The graph data object containing the node features to be translated.
 
         Returns:
-            Data: The modified graph data object with translated node features.
+        -------
+        Data
+            The transformed graph data object.
         """
         x = data.x
 
@@ -67,7 +78,7 @@ class RandomTranslate(BaseTransform):
         # Apply the translation to the specified node feature dimensions.
         x = x.index_add(1, torch.tensor(self.dims), translation)
 
-        # Update the node features in the data object
+        # Update the node features in the data object.
         data.x = x
 
         return data
