@@ -1,15 +1,12 @@
-seed: 42
 output_dir: <Insert>
-wandb: true
-wandb_project: <Insert>
-save_messages: true
-message_save_limit: 5000
 tqdm: true
-debug: false
-data_dir: <Insert>
-prune_graphs: 99.99
 quick_test: false
-model_state_path: null
+save_messages: true
+message_save_limit: 30000
+data_dir: <Insert>
+test_batch_size: 1024
+prune_outliers: 99.99
+model_weights_path: <Insert>
 model: gnn
 model_params:
   n_f: 6
@@ -17,21 +14,7 @@ model_params:
   ndim: 2
   hidden: 300
   aggr: add
-epochs: 100
-train_batch_size: 64
-val_batch_size: 1024
-lr: 0.001
-weight_decay: 1.0e-08
-save_every_n_epochs: 5
-scheduler_params:
-  max_lr: 0.001
-  final_div_factor: 100000.0
 loss: maeloss+l1reg
 loss_params:
-  reg_weight: 0.0
-augmentations:
-  random_translate:
-    scale: 3
-    dims:
-    - 0
-    - 1
+  reg_weight: 0
+

@@ -2,7 +2,7 @@ output_dir: <Insert>
 tqdm: true
 quick_test: false
 save_messages: true
-message_save_limit: 1000
+message_save_limit: 30000
 data_dir: <Insert>
 test_batch_size: 1024
 prune_outliers: 99.99

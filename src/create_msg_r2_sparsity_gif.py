@@ -141,7 +141,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    input_path = args.input_path
+    input_path = args.edge_message_dir
     output_dir = args.output_dir
     sim = args.sim
     plot_sparsity = args.plot_sparsity
