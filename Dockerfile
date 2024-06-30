@@ -1,6 +1,10 @@
 FROM continuumio/miniconda3:24.5.0-0
 WORKDIR /app
-COPY . /app
+COPY src /app
+COPY simulations /app
+COPY setup.sh /app
+COPY environment.yml /app
+
 # Run the setup script
 RUN ./setup.sh
 RUN echo \"conda activate vj279_project_dev\" >> ~/.bashrc

@@ -282,8 +282,8 @@ def get_node_message_info_dfs(
     # Calculate the edge messages.
     msg = model.message(r, s)
 
-    # Calculate the predicted accelerations.
-    pred = model(graph)
+    # Fetch the labels.
+    y = graph.y
 
     # Concatenate the node features and messages for each edge.
     all_x_info = torch.cat((r, s, msg), dim=1)
@@ -306,7 +306,7 @@ def get_node_message_info_dfs(
     x_columns += ["e%d" % (k,) for k in range(msg.shape[-1])]
 
     # Add the label columns.
-    y_columns = ["a%d" % (k,) for k in range(1, pred.shape[-1] + 1)]
+    y_columns = ["a%d" % (k,) for k in range(1, y.shape[-1] + 1)]
 
     # Save dataframe containing all edge information.
     df_x = pd.DataFrame(
@@ -314,7 +314,7 @@ def get_node_message_info_dfs(
     )
 
     # Save dataframe containing the output of the node models.
-    df_y = pd.DataFrame(data=pred.cpu().detach().numpy(), columns=y_columns)
+    df_y = pd.DataFrame(data=y.cpu().detach().numpy(), columns=y_columns)
 
     # Add rel dist between the nodes as extra columns for symbolic regression.
     # (Note: points towards the recieving node)

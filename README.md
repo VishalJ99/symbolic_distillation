@@ -81,7 +81,7 @@ The following scripts are available:
     - `edge_message_csv`: Path to the edge messages csv file created by the test script.
     - `output_dir`: Path to the output directory where the results will be saved.
     - `sim` : The force law used in the simulation for example `spring`. See `utils.force_factory` for valid options.
-    - `--samples`: Number of samples to use for fitting the symbolic model.
+    - `--samples`: Number of samples to use for fitting the symbolic model. (default is 1000)
     - `--eps`: The epsilon value to add to the distance between particles when calculating the forces. This is used to prevent division by zero. Default is 1e-2.
     - `--no_sr`: Skip the symbolic regression step.
 
@@ -107,6 +107,7 @@ The following scripts are available:
     - `node_output_csv`: Path to the node accelerations csv file created by the test script.
     - `output_dir`: Path to the output directory where the results will be saved.
     - `--samples`: Number of samples to use for fitting the symbolic model.
+    (default is 1000)
 
 
     The output of the eval_node_model script will be a directory containing:
@@ -187,10 +188,7 @@ docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_
 The gifs will be saved in the `train_runs/spring_2d_l1/gif` directory.
 
 ### Test Model
-Next test the model, or use the pretrained model in the `pretrained_models` directory by using the config file `configs/hello_world/test_config_pretrained.yaml`. 
-
-Note: The first test run will take longer as julia needs to be compiled, subsequent runs will be faster.
-
+Next test the model, or use the pretrained model in the `pretrained_models` directory by specifying the config file `configs/hello_world/test_config_pretrained.yaml`. 
 
 Docker:
 ```
@@ -217,7 +215,9 @@ docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_
 
 Visualise the discovered equations:
 ```
+python -c "print('Edge Model Equations:')"
 docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_project_env && python src/view_symbolic_eq.py test_runs/spring_2d_l1/msg_eval/symbolic_edge.pkl"
+python -c "print('Node Model Equations:')"
 docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_project_env && python src/view_symbolic_eq.py test_runs/spring_2d_l1/node_eval/symbolic_node.pkl"
 ```
 

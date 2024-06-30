@@ -141,7 +141,6 @@ def main(input_csv, output_dir, sim, samples, eps=1e-2, no_sr=False):
             elementwise_loss="L1DistLoss()",
             niterations=100,
             binary_operators=["+", "-", "*", "/"],
-            random_state=42,
         )
         # Fit the symbolic regression model.
         edge_model.fit(X_train, Y_train)

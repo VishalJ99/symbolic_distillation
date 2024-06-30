@@ -9,7 +9,7 @@ import pickle as pkl
 import json
 
 
-def main(input_csv_x, input_csv_y, output_dir, samples=5000):
+def main(input_csv_x, input_csv_y, output_dir, samples):
     # Load the edge features and node output CSV files.
     df_x = pd.read_csv(input_csv_x)
     df_y = pd.read_csv(input_csv_y)
@@ -79,7 +79,6 @@ def main(input_csv_x, input_csv_y, output_dir, samples=5000):
         elementwise_loss="L1DistLoss()",
         niterations=100,
         binary_operators=["+", "-", "*", "/"],
-        random_state=42,
     )
 
     node_model.fit(X_train, Y_train)
