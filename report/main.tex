@@ -66,6 +66,7 @@
     \today % Or specify a date
     
 \end{titlepage}
+Word Count: 6220
 \tableofcontents
 \newpage
 \section{Introduction}
@@ -81,7 +82,7 @@
 
 
 % What is the report about
-The aim of this report is to reproduce the key results of the paper \textit{Discovering Symbolic Models from Deep Learning with Inductive Biases} by \textit{Cranmer et al.}. The main contributions of the paper are two fold - first the presentation of a systematic framework whereby inductive biases can be employed to distill low dimensional symbolic approximations of learned neural networks. The second is showing its successful application of the framework in 3 contexts: rediscovering force laws, rediscovering Hamiltonians and discovering a new equation for a nontrivial cosmology problem.
+The aim of this report is to reproduce the key results of the paper \textit{Discovering Symbolic Models from Deep Learning with Inductive Biases} by \textit{Cranmer et al.} \cite{cranmer2020discoveringsymbolicmodelsdeep}. The main contributions of the paper are two fold - first the presentation of a systematic framework whereby inductive biases can be employed to distill low dimensional symbolic approximations of learned neural networks. The second is showing its successful application of the framework in 3 contexts: rediscovering force laws, rediscovering Hamiltonians and discovering a new equation for a nontrivial cosmology problem.
 % What are subset are we exploring 
 The scope of this report is limited to the reproducibility of the experiments relating to the rediscovery of force laws. However, in doing so, the wider contribution of the framework is validated.
 % Why.
@@ -156,7 +157,7 @@ Each force law was simulated in 2D and 3D, with 4 and 8 particles respectively. 
 It is worth noting that the original paper ran each simulation for 1000 time steps, however, to avoid model training times becoming prohibitively long, the simulations were run for half the number of time steps. The step size varies for each simulation due to the differences in scale. It is: 0.005 for \( \frac{1}{r} \), 0.001 for \( \frac{1}{r^2} \), 0.01 for Spring, 0.001 for Charge. The code used for generating the simulations is available in the repository within the \texttt{simulations} directory, sourced from the repository associated with the original paper.
 % Preprocessing
 \subsection{Preprocessing}
-Due to the dependence of orbital and charge force laws on \(r\) raised to a negative power, force values can dramatically increase when particles are close together. This leads to data varying over a scale too extensive for effective neural network learning. To address this, a small epsilon \((10^{-2})\) was added to the denominator to compress \(r\) values into a more manageable range. Nonetheless, velocity and acceleration distributions in some experiments still displayed extremely large outliers. To further refine the data, velocities and accelerations were pruned based on the 0.01\% and 99.99\% percentiles. If any particle in a given timestep exceeded these bounds, the entire graph for that timestep was removed. This process ensured that only timesteps with all particle values within acceptable limits were retained, enhancing data quality and consistency. Although this method disrupts the temporal continuity of the data, each timestep constitutes a complete graph input for the neural network, and thus continuity is not essential. The impact of this preprocessing on the 2D Charge data is illustrated in Figure \ref{fig:distributions}. For more detailed effects of this step, please see the appendix.
+Due to the dependence of orbital and charge force laws on \(r\) raised to a negative power, force values can dramatically increase when particles are close together. This leads to data varying over a scale too extensive for effective neural network learning. To address this, a small epsilon \((10^{-2})\) was added to the denominator to compress \(r\) values into a more manageable range. Nonetheless, velocity and acceleration distributions in some experiments still displayed extremely large outliers. To further refine the data, velocities and accelerations were pruned based on the 0.01\% and 99.99\% percentiles. If any particle in a given timestep exceeded these bounds, the entire graph for that timestep was removed. This process ensured that only timesteps with all particle values within acceptable limits were retained, enhancing data quality and consistency. Although this method disrupts the temporal continuity of the data, each timestep constitutes a complete graph input for the neural network, and thus continuity is not essential. The impact of this preprocessing on the 2D Charge data is illustrated in Figure \ref{fig:distributions}.
 
 \begin{figure}[H]
     \centering
@@ -541,57 +542,47 @@ The next set of results to discuss are those presented in Table \ref{tab:R2}. Th
 The next set of results to be discussed are those presented in the Table \ref{tab:scarcity}, showing the fraction of the total variance captured by the $d$ most significant components in the edge message, where $d$ is the dimensionality of the problem. The general argument presented in the original paper was that promoting sparsity in the edge message would lead to a greater probability of successful symbolic reconstructions. However, the findings for KL training strategy provide an interesting example where the edge messages were often found to be sparser than those coming from networks trained under the L$_{1}$ strategy, however it was the strategy which had the lowest number of successful symbolic reconstructions. It is possible that the inductive bias placed on the model by the KL strategy was simply not appropriate for the task at hand. Alternatively, it may be the case that weight of the regularisation term was simply too large. The high MAE values over the test set also indicate that the model may have over prioritised sparsity in the edge message. Further, it is interesting to note that the opposite case is also true, where a lack of sparsity in the edge messages does not necessarily mean that the symbolic regression will fail. The charge 3D standard experiment is a good example of this, where the edge messages were not particularly sparse, with the top 3 components only capturing 40\% of the total variance, however all components were successfully reconstructed. 
 \subsection{Symbolic Reconstructions}
 % Discuss the edge reconstruction results - bottleneck wins, followed by l1, then standard and KL. 
+Finally, the symbolic reconstructions are discussed. First the edge model's reconstructions are considered. It is no suprise that the bottleneck strategy is the most successful, as it places the strongest inductive bias,explicitly constraining the message latent space to be of the correct dimensionality. What is suprising, is that the standard model performed better than in the original paper, which found that no model trained under the standard strategy could yield a successful reconstruction. Here, it was found that the standard strategy was able to give some successful reconstructions, despite not having any explicit strategy to promote sparsity in the edge messages. Which suggests that the inductive biases of a message-passing neural network, which calculates acceleration from aggregated messages, might be better than originally presented. This conclusion is supported by the $R^2$ values observed, which were comparable to those obtained under strategies explicitly encouraging sparsity.
 
-Finally, the symbolic reconstructions are discussed. First the edge model's reconstructions are considered. It is no suprise that the bottleneck strategy is the most successful, as it places the strongest inductive bias on the model which explicitly constrains the latent space to be of the correct dimensionality. What is suprising however, is that the standard model performed much better than in the original paper, which found that no model trained under the standard strategy gave a successful reconstruction. In this reproduction, it was found that the standard strategy was able to give some successful reconstructions, despite not having any explicit strategy to promote sparsity in the edge messages. It appears as though the inductive bias placed by using a message passing type network which predicts the acceleration from summed messages may be sufficient. This is further evidenced by the $R^2$ values being similar to the strategies where sparsity was explicity promoted.
 % Explain why R2 is more useful metric to determine which experiments were successful.
-To frame this discussion, it is important to make the point that to understand which strategy was successful in learning a representation that yielded the true pairwise force or acceleration, the appropriate table to consult is actually the $R^2$ Table \ref{tab:R2}. An $R^2$ value close to 1 is a sufficient condition to say that there exists a linear transformation of the true pairwise force or acceleration which strongly correlates with the significant edge message components. Such a linear transform can be reverse engineered to retrieve the symbolic model that best represents the edge model. 
-% Explain why this is a rare situation whereby we know what to expect and why - why do we know that the edge model should be a linear transform of the true force / acceleration? - describe the linear latent space situation. - dont seem to need the edge messages to be sparse to get correlated messages...
-------------------------------
-TODO: Link in why we know the linear transform is best, what does this come from and how does this change for other experiments, why would we expect a linear relationship???
-
-------------------------------------------------------
-Therefore, the $R^2$ values can be used as a proxy to determine which training strategies were successful, which show that the standard, bottleneck and L1 strategies should all have more successful reconstructions. The issue with retrieving a symbolic model is that the search space is vast, despite using a subset of the operators considered in the original paper to reduce the search space. For example, the spring 3d bottleneck provides a good example of this point. Since it had an $R^2$ value close to 1, it was assumed that the model had learned an appropriate representation of the pairwise force. However, the symbolic search was unable to find a successful reconstruction. It took several attempts before a search yielded components that were close to the true pairwise force. Other experiments such as the spring 2D, spring 3D and $r^-1$ 2D and standard experiments all have $R^2$ values close to 1, however the single search performed was unable to find a successful reconstruction. It is very likely that if a longer search was done, as was the case for the spring 3D bottleneck experiment, a successful reconstruction would have been found. Therefore, the reconstructions presented should not be used as an absolute measure of the success of the training strategy, but rather as a guide to determine which strategies are more likely to have been successful. 
-% However it still is not somewhat necessary - original paper claims an R2 of 0.2 for KL yet a succesful reconstruction was found, this is confusing 
-It is also important to note that while it is not strictly necessary that the experiment have a high $R^2$ value in order for symbolic regression to be successful, it is also the case that one would expect the $R^2$ value to indicate moderate correlation if the symbolic regression was successful. However, the original paper presents conflicting results for the KL strategy, where the spring and $r^{-1}$ 3D experiments had $R^2$ values of was 0.214 and 0.332, respectively, yet both were stated to give successful reconstructions. Such a discrepancy is confusing and should be investigated further. 
+To frame this discussion, it is important to understand the relevance of the $R^2$ Table \ref{tab:R2}. Because in this situation the true underlying force law is known, because it can be expressed perfectly in terms of summed messages, it is known that the symbolic model for the edge message will be a linear transformation of the true force. As such an $R^2$ value close to 1 is a sufficient condition for one to conclude that the model can be expressed as a symbolic equation. This is because an $R^2$ value close to 1 means that there exists a linear transformation of the true pairwise force or acceleration which strongly correlates with the significant edge message components. Such a linear transform can be reverse engineered to retrieve the symbolic model that best represents the edge model. Therefore, the $R^2$ values can be used as a proxy to determine which training strategies were successful, which show that the standard, bottleneck and L1 strategies should all have more successful reconstructions than have been reported. The issue with retrieving a symbolic model is that the search space is vast, despite using a subset of the operators considered in the original paper to reduce the search space. For example, the spring 3d bottleneck provides a good example of this point. Since it had an $R^2$ value close to 1, it was assumed that the model had learned an appropriate representation of the pairwise force. However, the symbolic search was unable to find a successful reconstruction in the first attempt. It took several more attempts before a search yielded components that were close to the true pairwise force. Other experiments such as the spring 2D, spring 3D and $r^-1$ 2D and standard experiments all have $R^2$ values close to 1, however the single search performed was unable to find a successful reconstruction. It is very likely that if a longer search was done, as was the case for the spring 3D bottleneck experiment, a successful reconstruction would have been found. Therefore, the reconstructions presented should not be used as an absolute measure of the success of the training strategy, but rather an indication of what is possible to recover with a quick search. It is also important to note that while it is not strictly necessary that the experiment have a high $R^2$ value in order for symbolic regression to be successful, it is also the case that one would expect the $R^2$ value to indicate moderate correlation if the symbolic regression was successful. However, the original paper presents an odd case where for the KL strategy, the spring and $r^{-1}$ 3D experiments had very low $R^2$ values of was 0.214 and 0.332, respectively, yet both were stated to give successful reconstructions. Such a result is quite rare and would be interesting to investigate further. 
 % Discuss the results of the node model - l1  wins, followed by standard, bottleneck and KL.
 
-Next the node model results are discussed. The results show that the L1 and standard strategues performed the best, followed by bottleneck and with doing much worst than the others KL. Future work could include creating $R^2$ tables for the node model to better understand if reconstructions were missed as discussed earlier or if the experiments were truly unsuccessful. This could be done by finding the correlation between the node model outputs and a linear transform of the aggregated edge message and node features in the same way as was done for the edge model.
+Next the node model results are discussed. The results show that the standard, bottleneck and L1 and standard strategies all perform well. It is interesting to note how much better the node reconstructions were for the standard strategy compared to the edge reconstructions. This is likely because of the fact that neural networks like to learn simple identity functions where possible. In this case, the architecture of the GNN allows for the node model to act as a simple sum function which may explain the higher success rate of the node reconstructions compared to the edge reconstructions. Future work could include creating $R^2$ tables for the node model to better understand if reconstructions were missed as discussed earlier or if the experiments were truly unsuccessful. This could be done by finding the correlation between the node model outputs and a linear transform of the aggregated edge message and node features in the same way as was done for the edge model.
 
 
-It is worth noting that many reconstructions were very close to the correct one, however were excluded as it was not clear how strict the original paper was when approving a given reconstruction as successful. Some examples of close reconstructions are given in the appendix. Further, sometimes the correct reconstruction was not the best, where best is defined by the selection criteria outlined in the method. Therefore, these results are an underestimate of the true number of successful reconstructions. Finally, only 1000 samples were used to perform the reconstructions, whereas the original paper used 5000. Using more samples would likely lead to more successful reconstructions, however the analysis would take much longer and so was not done in this report as for most experiments, 1000 samples was sufficient to find a successful reconstruction.
+It is worth noting that many reconstructions were very close to the correct one, however were excluded as it was not clear how strict the original paper was when approving a given reconstruction as successful. Some examples of close reconstructions are given in the appendix. Further, sometimes the correct reconstruction was not the best, where best is defined by the selection criteria outlined in the method. Therefore, these results are an underestimate of the true number of successful reconstructions.
 
-The final set of results to discuss are those from comparing the symbolic model's performance to the trained networks. The results show that the symbolic model outperforms the neural network for the spring 2D simulation and is comparable with the neural network for the r$^{-1}$ 2D simulation. For the remaining simulations, the neural network significantly outperforms the symbolic model. It is worth noting that the constants in the symbolic model were not refit to the data as suggested in the original paper. This could be a reason for the poor performance of the symbolic model in the other simulations. It would be interesting to see how the symbolic model would perform if the constants were refit to the data. Given that there is no noise in the dataset, one would expect the symbolic model to perform at least as well as the neural network, if not better. It is likely performing worse due to the accumulated approximation error from the multiple levels of function fitting.
-% Performs increasingly worse as the force law becomes more complex, likely due to the learnt constants being incorrect, would be interesting to see the effect of refitting the constants.
+The final set of results to discuss are those from comparing the symbolic model's performance to the trained networks. The results show that the symbolic model generally performs worse than the corresponding neural networks. It is worth noting that the constants in the symbolic model were not refit to the data as suggested in the original paper. This could be a reason for the poor performance of the symbolic model in the other simulations. It would be interesting to see how the symbolic model would perform if the constants were refit to the data. Given that there is no noise in the dataset, one would expect the symbolic model to perform at least as well as the neural network, if not better. It is likely performing worse due to the accumulated approximation error from the multiple levels of function fitting.
 
-% Interesting artifact whereby node model undid error in the edge model and in composition the model was correct.
 \subsection{Future work}
     % Dataset reproduction being very hard.
     There are two primary means by which this reproduction study could be further improved. The first being to repeat the analysis for different random seeds and seeing if the different sets of trained models are consistent with the results presented in this report. This would help give an understanding of what is natural variation in the results due to the stochastic nature of the training process versus what is a systematic discrepancy between the reproduced study and the original findings. Such an approach would solidify the conclusions drawn and provide a clearer comparison between the varying strategies employed for both the edge and node models.
 
     The second means by which this reproduction study could be further improved is to investigate the effect incorporating more inductive biases and seeing if the trained models are easier to distill as would be expected. A natural bias to add to the model would be to include Newtons third law, through introducing a penalty to the loss term that enforces the sum of $\mathbf{\phi^{e}(x_i, x_j)} + \mathbf{\phi^e(x_j,x_i)} = \textbf{0}$.
 
-\section{ Reproducibility}
-This section addresses the reproducibility aspect of this work. There are 3 sources of randomness at play which affect the ability to reproduce the results. 
-\subsection{Dataset Reproducability}
-The first challenge reproducing the results of the original paper was in reproducing the datasets. The original paper did provide the code used to generate the datasets, however did not indicate which seeds were used. However even if this was declared, it is likely that the datasets would still be difficult to reproduce, due to the differences in hardware. $N$ body simulations, where $N > 2$, are famously chaotic systems. This means that small changes in the initial conditions can lead to vastly different outcomes. Or in this case, small numerical fluctuations introduced through the hardware specific optimisations that the \texttt{jax} package uses can lead to drastically different trajectories. To demonstrate this point, two datasets are generated following the $r^{-1}$ force law, for 4 bodies in 2 dimensions. The dataset describes 10000 simulations of 30 time steps each. The same random seed was used to generate both datasets, however the datasets were generated on different machines, the first was generated locally on a laptop using macOS and the second was generated through a system running linux. The Kologorov-Smirnov test was used to compare the distributions of the particles $x$ coordinate as a function of time across all simulations. The results are shown in Figure \ref{fig:ks_test}. The figure shows how the p value rapidly decreases as the time step increases, indicating that the distributions quickly diverge. 
+% \section{ Reproducibility}
+% This section addresses the reproducibility aspect of this work. There are 3 sources of randomness at play which affect the ability to reproduce the results. 
+% \subsection{Dataset Reproducability}
+% The first challenge reproducing the results of the original paper was in reproducing the datasets. The original paper did provide the code used to generate the datasets, however did not indicate which seeds were used. However, even if this was declared, the datasets would still be difficult to reproduce, due to the differences in hardware. $N$ body simulations, where $N > 2$, are famously chaotic systems. This means that small changes in the initial conditions can lead to vastly different outcomes. Or in this case, small numerical fluctuations introduced through the hardware specific optimisations that the \texttt{jax} package uses can lead to drastically different trajectories. To demonstrate this point, two datasets are generated following the $r^{-1}$ force law, for 4 bodies in 2 dimensions. The datasets describe 10000 simulations of 30 time steps each. The same random seed was used to generate both datasets, however the datasets were generated on different machines, the first was generated locally on a laptop using macOS and the second was generated through a system running linux. The Kologorov-Smirnov test was used to compare the distributions of the particle's $x$ coordinate as a function of time across all simulations. The results are shown in Figure \ref{fig:ks_test}. The figure shows how the p value rapidly decreases as the time step increases, indicating that the distributions quickly diverge. 
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.5\textwidth]{figs/ks_test.png}
-    \caption{Kologorov-Smirnov test comparing the distributions of the particles $x$ coordinate as a function of time, $T$ across an interacting particle dataset. The test was performed on two datasets generated using the same package versions and random seeds but on two different machines.}
-    \label{fig:ks_test}
-\end{figure}
-Thus, to address this issue, the datasets were generated using a docker container. This ensures a standardised environment in which to generate the datasets in a reproducible manner. Further, future work could instead incorporate datasets which use more simulations that are each evolved for fewer number of time steps which would help limit any error introduced by the chaotic nature of the system. Alternatively, the datasets could be hosted on a cloud service, such as AWS S3, which would circumvent the need to generate the datasets and guarentee that everyone is using the same data.
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.5\textwidth]{figs/ks_test.png}
+%     \caption{Kologorov-Smirnov test comparing the distributions of the particles $x$ coordinate as a function of time, $T$ across an interacting particle dataset. The test was performed on two datasets generated using the same package versions and random seeds but on two different machines.}
+%     \label{fig:ks_test}
+% \end{figure}
+% Thus, to address this issue, the datasets were generated using a docker container. This ensures a standardised environment in which to generate the datasets in a reproducible manner. Further, future work could instead incorporate datasets which use more simulations that are each evolved for fewer number of time steps which would help limit any error introduced by the chaotic nature of the system. Alternatively, the datasets could be hosted on a cloud service, such as AWS S3, which would circumvent the need to generate the datasets and guarentee that everyone is using the same data.
 
-\subsection{Model Reproducability}
-Next, even if the datasets can be perfectly reproduced, there are still stochastic elements in the training process which can affect the results. To resolve this, a random seed was used to make training deterministic and see the initial model weights are also saved during training. These can be made available upon request. Further, the code base was designed to give reproducible results. Conda was used to standardise the environment and configuration files used to run the experiments were stored in the git repository under \texttt{configs/train\_configs}. Every train job is automatically logged to wandb. The train config is also saved to the output directory of the train job with the current git commit hash. These configs and the trained models can be made available upon request, they have not been included in the git repository due to their size. Steps to reproduce the training process are detailed in the \texttt{README.md} file.
+% \subsection{Model Reproducability}
+% Next, even if the datasets can be perfectly reproduced, there are still stochastic elements in the training process which can affect the results. To resolve this, a random seed was used to make training deterministic and see the initial model weights are also saved during training. These can be made available upon request. Further, the code base was designed to give reproducible results. Conda was used to standardise the environment and configuration files used to run the experiments were stored in the git repository under \texttt{configs/train\_configs}. Every train job is automatically logged to wandb. The train config is also saved to the output directory of the train job with the current git commit hash. These configs and the trained models can be made available upon request, they have not been included in the git repository due to their size. Steps to reproduce the training process are detailed in the \texttt{README.md} file.
 
-\subsection{Symbolic Regression Reproducbility}
-Lastly, the symbolic regression process is also stochastic. The search space is vast and thus in order to get reproducible results, a random state was set. Further, the hyperparameters of the \texttt{PySRRegressor} were also made clear in the method section.
+% \subsection{Symbolic Regression Reproducbility}
+% Lastly, the symbolic regression process is also stochastic. The search space is vast and thus in order to get reproducible results, a random state was set. Further, the hyperparameters of the \texttt{PySRRegressor} were also made clear in the method section.
 
-% 3 sources of randomness - the dataset , model initialisation, optimisation / training, symbolic search. How to standardise each one in the future.
+% % 3 sources of randomness - the dataset , model initialisation, optimisation / training, symbolic search. How to standardise each one in the future.
 
-% Dockerisation, conda, git, readme, etc.
+% % Dockerisation, conda, git, readme, etc.
 
 \section{Conclusion}
 This report has presented the results of a reproduction study of the paper "Discovering Symbolic Models using Deep Learning with Inductive Biases". Here a subset of the experiments introduced in the original paper were investigated. This report managed to find the same overall trends in the MAE values as the original paper, however the MAE values were consistently lower due to the extra preprocessing step of pruning the data. Symbolic reconstructions of the edge and node models were successfully found. With the bottleneck and L1 training strategies being the most successful in yielding the most reconstructions of the true force law. The standard strategy was found to be far more successful in learning a compact latent space than was suggested by the original paper. The symbolic model was compared against the neural network model and found to perform better for the spring 2D simulation and comparable for the r$^{-1}$ 2D simulation. Thus, the main claim of the original paper, that symbolic regression can be used to distill the learned models of neural networks trained using appropriate inductive biases, was found to be true. 
@@ -610,24 +601,50 @@ This report has presented the results of a reproduction study of the paper "Disc
 %     Discussion point - stronger L1 or an L1 scheduler type thing.
 %     Could make the data more reproducable by fewer time steps and more simulations
     
-    
-    
-    
-    
-    
-    
-    
-    \section{Appendix}
-    Example of a failed reconstruction:
-    Spring 3D, $L_1$: expect $\phi^{e}_i \approx (1-\frac{1}{r})\mathbf{a} \cdot \mathbf{\Delta r} + b$.
-    
-    $$\phi^{e}_1 = (0.0772r + 0.102)(0.381 \Delta x - 0.190 \Delta y + \Delta z)$$
+\section{Appendix}
+\subsection{Failed Symbolic Reconstructions}
+\paragraph*{Example of some failed edge reconstructions:}
+\begin{itemize}
+    \item 
 
-    Example of close reconstructions but 2nd was good.
+    Spring 2D, KL (clearly wrong):
+    $$
+    \phi^{e}_2 = \frac{\Delta x + \Delta y}{-r + m_1 ( 0.647 - m_1)}
+    $$
+    \item
+    Charge 2D, L$_1$ (almost correct):
+    $$
+    \phi^{e}_2 = \frac{0.351\Delta y q_2}{r^2(r+0.169m_1)}
+    $$
+    \item
+    $r^{-2}$ 3D, standard (almost correct):
+    $$
+    \phi^{e}_1 = \frac{8.43m_2(0.26+\frac{\Delta x - \Delta y + 3.52\Delta z}{r})}{r^2}
+    $$
+\end{itemize}
+\paragraph{Example of some failed node reconstructions:}
+\begin{itemize}
+    \item 
+    Charge 3D, KL (clearly wrong):
+    $$
+    \phi^{v}_3 = \bar{e_1}\bar{e_2}^2
+    $$
+    \item
+    Charge 3D, bottleneck (almost correct):
+    $$
+    \phi^{v}_1 = (0.153 + \frac{0.171}{m_1})(\bar{e_2} + \bar{e_1} + 1.11)
+    $$
+    \item
+    $r^{-2}$ 2D, standard (clearly wrong):
+    $$
+    \phi^{v}_1 = 3.62 \times 10^{-5} \bar{e_1}^2
+    $$
+\end{itemize}
 
-    Example of undoing reconstruction.
+\subsection{CoPilot and ChatGPT Usage}
+Copilot was used extensively for formatting the equations and plots used in this report and writing the doc strings for the code. The script \texttt{src/view\_symbolic\_eq.py} was generated by chatGPT.
 
-    Dump of the histograms of the pruning.
+
 
     
 
