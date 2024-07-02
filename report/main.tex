@@ -66,7 +66,7 @@
     \today % Or specify a date
     
 \end{titlepage}
-Word Count: 6220
+Word Count: 6100
 \tableofcontents
 \newpage
 \section{Introduction}
@@ -162,15 +162,15 @@ Due to the dependence of orbital and charge force laws on \(r\) raised to a nega
     \centering
     \begin{subfigure}{0.9\textwidth}
         \includegraphics[width=\textwidth]{figs/charge_2_accel_vel_dist_unpruned.png}
-        \caption{Charge 2D velocity distribution}
+        \caption{Charge 2D original distribution}
         \label{fig:charge_2_vel_dist_unpruned}
     \end{subfigure}
     \begin{subfigure}{0.9\textwidth}
         \includegraphics[width=\textwidth]{figs/charge_2_accel_vel_dist_pruned.png}
-        \caption{Charge 2D velocity distribution (pruned)}
+        \caption{Charge 2D pruned distribution}
         \label{fig:charge_2_vel_dist_pruned}
     \end{subfigure}
-    \caption{Velocity and acceleration distributions for Charge 2D data before and after preprocessing}
+    \caption{Velocity and acceleration distributions for data generated using the charge 2d force law before and after pruning outlier timesteps.}
     \label{fig:distributions}
 \end{figure}
 
@@ -278,7 +278,7 @@ For comparison, the MAE values for the original paper are presented in Table \re
     \label{tab:mae_table_original}
     \end{table}
 \subsection{Edge Message $R^2$}
-The next set of results presented are the $R^2$ values between significant edge message components and the linearly transformed true pairwise forces (or accelerations), averaged across all components. The results are presented in Table \ref{tab:R2}. For comparison, the $R^2$ values for the original paper are presented in Table \ref{tab:R2_original}. Example scatter plots of the edge message components against the linear transformation of the pairwise force for the different strategies of the spring 2D simulation are shown in Figure \ref{fig:scatter_plots}. The standard strategy in this report is found to have a significantly different value than that in the original paper which finds that in all simulations, it is very close to 0. It is not clear from the original papers results if these values were calculated strictly between the significant edge message components and the pairwise force, or if they also considered the pairwise accelerations. This discrepancy is looked at in more detail in the discussion section.
+The next set of results presented are the $R^2$ values between significant edge message components and the linearly transformed true pairwise forces (or accelerations), averaged across all components. The results are presented in Table \ref{tab:R2}. For comparison, the $R^2$ values for the original paper are presented in Table \ref{tab:R2_original}. Example scatter plots of the edge message components against the linear transformation of the pairwise force for the different training strategies of the spring 2D simulation are shown in Figure \ref{fig:scatter_plots}. The standard strategy in this report is found to have a significantly different value than that in the original paper which finds that in all simulations, it is very close to 0. It is not clear from the original papers results if these values were calculated strictly between the significant edge message components and the pairwise force, or if they also considered the pairwise accelerations. This discrepancy is looked at in more detail in the discussion section.
     \begin{table}[H]
         \centering
         \begin{tabular}{lcccc}
@@ -423,7 +423,7 @@ From the results obtained, it is clear that the bottleneck strategy consistently
         Spring-2 & \textbf{2/2} & \textbf{2/2} & \textbf{2/2} & 0/2 \\
         \hline
         \end{tabular}
-        \caption{Successful reconstructions of the Newton's 2nd law after symbolically regressing the node model. Experiments where all components are successfully reconstructed are highlighted in bold.}
+        \caption{Successful reconstructions of Newton's 2nd law after symbolically regressing the node model. Experiments where all components are successfully reconstructed are highlighted in bold.}
         \label{tab:sr_edge_model_table}
     \end{table}
 
@@ -514,7 +514,7 @@ bottleneck strategy was found to be the best in five out of eight simulations by
     8 (\textbf{Worst})& r$^{-2}$-2 & charge-2\\
     \bottomrule
     \end{tabular}
-    \caption{Comparative analysis of model performance, correlating the standard deviation of the acceleration labels in the training set with the mean absolute error (MAE) on the test set.}
+    \caption{Comparing the order of experiments ranked by the standard deviation of the acceleration labels in the training set and the best mean absolute error (MAE) on the test set.}
     \label{tab:std_table_2}
 \end{table}
 Further, the original papers MAE's are consistently higher, despite training for twice as long on twice as much data. At its extreme, the difference between the MAE presented in this report versus the originals was 49, compared to 0.462 for the standard charge 2d model. This likely means that the original data contained more extreme values, otherwise such a result is unexplainable. This motivates the importance of the pruning preprocessing step, which was not used in the original paper, however was essential in this reproduction. Without pruning the data, the KL training strategy was not found to be stable, with it's gradients exploding shortly into training, giving rise to nans in the loss. It is worth noting that the pruning is not the only solution to handling the large accelerations. These outliers were only an issue for the KL training strategy, where the predicted log variance terms would blow up after exponentiating them to compute the loss. One solution would be to squash the log variance term, alternatively the epsilon term added to the distance could be increased when generating the data. It would be interesting to see if the recovered symbolic expressions would then learn the larger epsilon term.
