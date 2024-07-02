@@ -2,10 +2,9 @@
 
 This project is aimed at reproducing the work presented in [Discovering Symbolic Models from Deep Learning with Inductive Biases](https://arxiv.org/abs/2006.11287), as part of the Data Intensive Science MPhil at the University of Cambridge.
 
-For access to the exact trained model weights and the data used in the experiments, please contact the author at vj279@cam.ac.uk
-
-Alternatively, one can follow the instructions presented in the Hello World Example below to repeat the analysis.
-
+The pretrained model for the spring 2d dataset under the L1 training strategy can be found in the `pretrained_models` directory.
+The rest of the trained model weights along with the exact training data used in the experiments can be made available upon request.
+ 
 ## Pre-requisites
 Ensure conda is installed on your system. If not, follow the instructions [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
