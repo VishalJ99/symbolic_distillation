@@ -21,3 +21,4 @@ report/main.*
 !report/main.tex
 !setup.sh
 !pretrained_models/*
+executive_summary

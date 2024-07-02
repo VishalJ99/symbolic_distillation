@@ -2,6 +2,10 @@
 
 This project is aimed at reproducing the work presented in [Discovering Symbolic Models from Deep Learning with Inductive Biases](https://arxiv.org/abs/2006.11287), as part of the Data Intensive Science MPhil at the University of Cambridge.
 
+For access to the exact trained model weights and the data used in the experiments, please contact the author at vj279@cam.ac.uk
+
+Alternatively, one can follow the instructions presented in the Hello World Example below to repeat the analysis.
+
 ## Pre-requisites
 Ensure conda is installed on your system. If not, follow the instructions [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
@@ -110,7 +114,7 @@ The following scripts are available:
     (default is 1000)
 
 
-    The output of the eval_node_model script will be a directory containing:
+    The output of the `eval_node_model.py` script will be a directory containing:
     1) `nn_a_vs_symbolic.png` plot showing the scatter plot of the node accelerations and the output of the symbolic model.
     2) `nn_a_vs_symbolic_a_diff.json` json file containing the summary statistics of the difference between the node accelerations and the output of the symbolic model.
     3) `symbolic_node.pkl` pickle file of a dictionary with keys: model, var_names, important_msg_idxs. The model is the pysr symbolic regression model and var_names is the names of the variables used in the symbolic regression, important_msg_idxs is the indices of the most important components of the aggregated edge message.
@@ -123,7 +127,7 @@ The following scripts are available:
     python src/view_symbolic_eq.py <symbolic_eq_pkl>
     ```
     Arguments:
-    - `symbolic_eq_pkl`: Path to the symbolic equation pickle file created by the eval_msgs or eval_node_model script.
+    - `symbolic_eq_pkl`: Path to the symbolic equation pickle file created by the `eval_msgs.py` or `eval_node_model.py` script.
 
     Logs to the console the symbolic equation in a more human readable format.
 
