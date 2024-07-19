@@ -206,7 +206,7 @@ python src/test.py configs/hello_world/test_config.yaml
 
 ### Distill the Graph Neural Network
 Distill the edge model:
-
+The model should be able to reconstruct the pairwise force law with a linear transformation. The R2 scores should be close to 1.0.
 ```
 docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_project_env && python src/eval_msgs.py test_runs/spring_2d_l1/symbolic_regression_csvs/edge_messages.csv  test_runs/spring_2d_l1/msg_eval spring --samples 1000"
 ```
@@ -217,6 +217,11 @@ docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_
 ```
 
 Visualise the discovered equations:
+
+NOTE: Successful reconstruction of the edge model looks like a linear transform of the true pairwise force law - in this case for spring 2d, the pairwise force law is $\mathbf{f} = |1-1/r|\mathbf{\Delta r}$, so the edge model should be distilled into an expression ~ $\mathbf{\phi^e_i} = |1-1/r|(a*\Delta x + b*\Delta y) + c$. See the report for more details.
+
+Successful reconstrunction of the node model should look like a sum over the aggregated edge messages.
+
 ```
 python -c "print('Edge Model Equations:')"
 docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_project_env && python src/view_symbolic_eq.py test_runs/spring_2d_l1/msg_eval/symbolic_edge.pkl"
