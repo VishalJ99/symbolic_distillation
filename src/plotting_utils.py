@@ -146,7 +146,7 @@ def make_force_edge_msg_scatter(transformed_forces, most_important_msgs, dim=2):
             s=0.1,
             c="black",
         )
-        ax.set_xlabel("Transformed Forces", fontsize=16)
+        ax.set_xlabel("Transformed Accelerations", fontsize=16)
         ax.set_ylabel(f"Message Component {i+1}", fontsize=16)
         ax.title.set_text(f"Component {i+1} R^2: {R2: .2f}")
         ax.title.set_fontsize(16)

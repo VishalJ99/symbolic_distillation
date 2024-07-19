@@ -14,10 +14,10 @@ Note, the docker commands do not need conda to be installed on your system. Howe
 ## Set up
 ```
 # Clone the repository.
-git clone git@gitlab.developers.cam.ac.uk:phy/data-intensive-science-mphil/projects/vj279.git
+git clone git@github.com:VishalJ99/symbolic_distillation.git
 
 # Set up the environment locally.
-cd vj279
+cd symbolic_distillation
 source setup.sh
 
 # Build the docker image.

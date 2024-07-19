@@ -38,7 +38,8 @@ def spring_force(df: pd.DataFrame, eps: float = 1e-2) -> np.ndarray:
     pos_cols = ["dx", "dy"] + (["dz"] if "dz" in df.columns else [])
     dr = df[pos_cols].to_numpy()
     r = (df.r + eps).to_numpy()[:, None]
-    return -((r - 1)) * (dr / r)
+    m1 = df.m1.to_numpy()[:, None]
+    return -((r - 1)/m1) * (dr / r)
 
 
 def r1_force(df: pd.DataFrame, eps: float = 1e-2) -> np.ndarray:
