@@ -37,34 +37,34 @@
 \begin{titlepage}
     \centering
     \vspace*{1cm}
-    
+
     \includegraphics[width=0.5\textwidth]{figs/logo.png} % Change this line to the path where you save the Cambridge logo image
-    
+
     \vspace{1.5cm}
-    
+
     {\Large\bfseries Discovering Symbolic Models from Deep Learning with Inductive Biases - Reproduction Report\par}
-    
+
     \vspace{2cm}
-    
+
     {\Large Vishal Jain \par}
-    
+
     \vspace{1cm}
-    
+
     {\large Department of Physics \par}
     \vspace{1cm}
     {\large MPhil in Data Intensive Science \par}
     \vspace{1cm}
     {\large Supervisor: Dr Miles Cranmer \par}
-    
+
     \vfill
     A dissertation presented for the degree of\\
     Master of Philosophy
-    
+
     \vspace{0.8cm}
-    
+
     \Large University of Cambridge\\
     \today % Or specify a date
-    
+
 \end{titlepage}
 Word Count: 6100
 \tableofcontents
@@ -76,14 +76,14 @@ Word Count: 6100
 
 % How are we going to do it: High level overview of the approach taken in the report.
 
-% Background: 
+% Background:
 % New concepts - symbollic regression, graph neural networks. Inductive biases.
 
 
 
 % What is the report about
 The aim of this report is to reproduce the key results of the paper \textit{Discovering Symbolic Models from Deep Learning with Inductive Biases} by \textit{Cranmer et al.} \cite{cranmer2020discoveringsymbolicmodelsdeep}. The main contributions of the paper are two fold - first the presentation of a systematic framework whereby inductive biases can be employed to distill low dimensional symbolic approximations of learned neural networks. The second is showing its successful application of the framework in 3 contexts: rediscovering force laws, rediscovering Hamiltonians and discovering a new equation for a nontrivial cosmology problem.
-% What are subset are we exploring 
+% What are subset are we exploring
 The scope of this report is limited to the reproducibility of the experiments relating to the rediscovery of force laws. However, in doing so, the wider contribution of the framework is validated.
 % Why.
 \subsection{Motivation}
@@ -151,8 +151,8 @@ This section will outline the data used in the experiments and the preprocessing
     \item \(\frac{1}{r^2}\) Orbital force: \(\textbf{f}_{ij} = -\frac{m_i m_j \hat{\textbf{r}}_{ij}}{|\textbf{r}_{ij}|^2}\)
     \item Charge: \(\textbf{f}_{ij} = -\frac{q_i q_j \hat{\textbf{r}}_{ij}}{|\textbf{r}_{ij}|^2}\)
 \end{itemize}
-Each force law was simulated in 2D and 3D, with 4 and 8 particles respectively. For each experiment, 10000 simulations were run in parallel for 500 time steps. This was split 3:1 to obtain the training and validation set. The test set was generated separately and of the same size as the combined train and validation sets. The initial positions and velocities were sampled from a standard normal distribution, the mass was sampled from a log standard normal distribution and the charge was drawn randomly from the set \(\{-1, 1\}\). 
-% Original paper dataset size vs this one 
+Each force law was simulated in 2D and 3D, with 4 and 8 particles respectively. For each experiment, 10000 simulations were run in parallel for 500 time steps. This was split 3:1 to obtain the training and validation set. The test set was generated separately and of the same size as the combined train and validation sets. The initial positions and velocities were sampled from a standard normal distribution, the mass was sampled from a log standard normal distribution and the charge was drawn randomly from the set \(\{-1, 1\}\).
+% Original paper dataset size vs this one
 It is worth noting that the original paper ran each simulation for 1000 time steps, however, to avoid model training times becoming prohibitively long, the simulations were run for half the number of time steps. The step size varies for each simulation due to the differences in scale. It is: 0.005 for \( \frac{1}{r} \), 0.001 for \( \frac{1}{r^2} \), 0.01 for Spring, 0.001 for Charge. The code used for generating the simulations is available in the repository within the \texttt{simulations} directory, sourced from the repository associated with the original paper.
 % Preprocessing
 \subsection{Preprocessing}
@@ -186,7 +186,7 @@ The architecture of the graph neural network (GNN) employed across various train
 
 \paragraph*{Node Model} Mirroring the edge model in structure, the node model takes as input the summed edge messages from all inbound edges to a given node, concatenated with the node's feature vector. Its output is a vector of dimension 2 or 3, corresponding to the predicted instantaneous acceleration for the node.
 \subsection{Training strategies}
-This report investigates 4 of the training strategies outlined in the original paper. The training strategies are as follows: standard, bottleneck, L$_1$ and KL. 
+This report investigates 4 of the training strategies outlined in the original paper. The training strategies are as follows: standard, bottleneck, L$_1$ and KL.
 
 \paragraph*{Standard Strategy}
 The standard training strategy serves as the baseline case where the edge message dimensionality is 100 and the loss does not include any regularisation terms. Here the loss function is given by the mean absolute error (MAE) between the predicted and true accelerations.
@@ -330,7 +330,7 @@ The next set of results presented are the $R^2$ values between significant edge 
             \includegraphics[width=\textwidth]{figs/spring_2d_bottleneck_r2.png}
             \caption{Spring 2D, Bottleneck}
         \end{subfigure}
-        
+
         \begin{subfigure}{0.45\textwidth}
             \includegraphics[width=\textwidth]{figs/spring_2d_l1_r2.png}
             \caption{Spring 2D, L$_1$}
@@ -394,13 +394,13 @@ From the results obtained, it is clear that the bottleneck strategy consistently
         $$
         \phi^{e}_1 = (-0.291 + \frac{0.287}{r})(\Delta x - 0.986 \Delta y) + 0.00118
         $$
-        \item 
+        \item
         r$^{-1}$ 2d, KL (expect $\phi^{e}_i \approx \mathbf{a} \cdot \frac{m_1 m_2}{r^2} \mathbf{\Delta r} + b$):
         $$\phi^{e}_2 = -\frac{0.273m_2(\Delta x + \Delta y)}{r^2}$$
-        \item 
+        \item
         r$^{-2}$ 3d, bottleneck (expect $\phi^{e}_i \approx \mathbf{a} \cdot \frac{m_1 m_2}{r^3} \mathbf{\Delta r} + b$):
         $$\phi^{e}_3 = \frac{6.06m_2(-0.713\Delta x + \Delta y + 2.44\Delta z)}{r^3}$$
-        \item 
+        \item
         Charge 3d, standard (expect $\phi^{e}_i \approx \mathbf{a} \cdot \frac{q_1 q_2}{r^3} \mathbf{\Delta r} + b$. Note, because $q_1, q_2 \in \{-1, 1\}$, $q_1 \times q_2 \equiv \frac{q_1}{q_2} \equiv \frac{q_2}{q_1}$):
         $$\phi^{e}_1 = = -\frac{39.3q_2(0.273\Delta x + \Delta y)}{ q_1 m_1r^3}$$
     \end{itemize}
@@ -453,7 +453,7 @@ From the results obtained, it is clear that the bottleneck strategy consistently
 
     In some cases, the node model is a simple linear transform of the aggregated edge messages, this occurs when the edge model learns the pairwise acceleration, so the node model just acts as a sum over the individual accelerations to return the net acceleration. In other cases, like the charge 3d KL experiment and the spring 2d L$_1$ experiment, the node model explicitly learns the division by the mass of the receiving particle, $m_1$, to convert the force to an acceleration.
 
-    Finally, the performance of the symbolic models are compared to the neural network models in Table \ref{tab:sr_vs_nn_table}. This is done choosing experiments where all components of the edge and node model outputs could be successfully reconstructed and comparing the MAE and standard deviation on the test set from the symbolic model against the best performing neural network for that simulation. The neural network generally outperforms the symbolic model. It is worth noting that the constants in the symbolic model were not refit to the data as suggested in the original paper. 
+    Finally, the performance of the symbolic models are compared to the neural network models in Table \ref{tab:sr_vs_nn_table}. This is done choosing experiments where all components of the edge and node model outputs could be successfully reconstructed and comparing the MAE and standard deviation on the test set from the symbolic model against the best performing neural network for that simulation. The neural network generally outperforms the symbolic model. It is worth noting that the constants in the symbolic model were not refit to the data as suggested in the original paper.
     \begin{table}[H]
         \centering
         \begin{tabular}{lcccc}
@@ -472,7 +472,7 @@ From the results obtained, it is clear that the bottleneck strategy consistently
         \label{tab:sr_vs_nn_table}
     \end{table}
 \section{Discussion}
-In this section the results are discussed, both in a standalone manner and in the context of the original paper's results. 
+In this section the results are discussed, both in a standalone manner and in the context of the original paper's results.
 \subsection{Model Performance}
 % The difficulty increasing wrt to the inverse force
 To understand the results, it is first imperative to understand that the force laws simulated in this report vary in complexity. This complexity can be understood in terms of dependencies on the distance \( r \). Specifically, the spring force is linearly proportional to \( r \) whereas the orbital force laws follow \( r^{-1} \) and \( r^{-2} \) dependencies. The electrostatic force also follows a \( r^{-2} \) dependency. This leads to significant differences in how data varies across simulations, as detailed by the standard deviation of the acceleration labels in the training set (Table \ref{tab:std_table}).
@@ -495,7 +495,7 @@ To understand the results, it is first imperative to understand that the force l
     \caption{Standard deviation of the acceleration labels in the training set for the different simulations.}
     \label{tab:std_table}
 \end{table}
-Table \ref{tab:std_table_2} ranks the networks by the standard deviation of the accelerations in their training data and their MAE on the test set. The results show how the standard deviation of the accelerations in the training set can predict the performance of the model on the test set. Which makes intuitive sense, it is harder for the model to learn robust features if the data varies over too large a scale. Further, it explains why the performance on the 2D data for a given force law is worse than the 3D data, in all cases except spring where the situation is reversed due to it being proportional to a positive power of $r$. Due to the higher dimensionality of the problem, there is more 'space' so there is a smaller chance any pair of particles get too close to each other and the acceleration blows up. This is why the models trained on 3D data perform better than those trained on 2D data. For the spring experiment, the larger distances between particles in 3D means that the accelerations will be larger and hence why for spring, the 2D simulation performs better. It is worth noting that the MAE values presented in the original report, shown in Table \ref{tab:mae_table_original} are also consistent with this point. The main point of contention is how the original paper frames the results as the L$_1$ strategy being the best when both the reproduction and the original results show how the results are very close. Indeed, in this report the 
+Table \ref{tab:std_table_2} ranks the networks by the standard deviation of the accelerations in their training data and their MAE on the test set. The results show how the standard deviation of the accelerations in the training set can predict the performance of the model on the test set. Which makes intuitive sense, it is harder for the model to learn robust features if the data varies over too large a scale. Further, it explains why the performance on the 2D data for a given force law is worse than the 3D data, in all cases except spring where the situation is reversed due to it being proportional to a positive power of $r$. Due to the higher dimensionality of the problem, there is more 'space' so there is a smaller chance any pair of particles get too close to each other and the acceleration blows up. This is why the models trained on 3D data perform better than those trained on 2D data. For the spring experiment, the larger distances between particles in 3D means that the accelerations will be larger and hence why for spring, the 2D simulation performs better. It is worth noting that the MAE values presented in the original report, shown in Table \ref{tab:mae_table_original} are also consistent with this point. The main point of contention is how the original paper frames the results as the L$_1$ strategy being the best when both the reproduction and the original results show how the results are very close. Indeed, in this report the
 bottleneck strategy was found to be the best in five out of eight simulations by a slim margin, however factoring in the standard deviations in the MAE scores, one can see how the strategies are very close in performance. As such, there is no clear dominant strategy, only a clear worst one in the KL strategy.
 % Discuss the results of the MAE and std.
 \begin{table}[H]
@@ -514,7 +514,7 @@ bottleneck strategy was found to be the best in five out of eight simulations by
     8 (\textbf{Worst})& r$^{-2}$-2 & charge-2\\
     \bottomrule
     \end{tabular}
-    \caption{Comparing the order of experiments ranked by the standard deviation of the acceleration labels in the training set and the best mean absolute error (MAE) on the test set.}
+    \caption{Comparing the order of experiments, ranked by the standard deviation of the acceleration labels in the training set and the best mean absolute error (MAE) on the test set.}
     \label{tab:std_table_2}
 \end{table}
 Further, the original papers MAE's are consistently higher, despite training for twice as long on twice as much data. At its extreme, the difference between the MAE presented in this report versus the originals was 49, compared to 0.462 for the standard charge 2d model. This likely means that the original data contained more extreme values, otherwise such a result is unexplainable. This motivates the importance of the pruning preprocessing step, which was not used in the original paper, however was essential in this reproduction. Without pruning the data, the KL training strategy was not found to be stable, with it's gradients exploding shortly into training, giving rise to nans in the loss. It is worth noting that the pruning is not the only solution to handling the large accelerations. These outliers were only an issue for the KL training strategy, where the predicted log variance terms would blow up after exponentiating them to compute the loss. One solution would be to squash the log variance term, alternatively the epsilon term added to the distance could be increased when generating the data. It would be interesting to see if the recovered symbolic expressions would then learn the larger epsilon term.
@@ -537,19 +537,19 @@ The next set of results to discuss are those presented in Table \ref{tab:R2}. Th
 
 
 \subsection{Edge Message Sparsity}
-% Sparsity in edge message not signficantly correlated with higher chance of symbolic reconstrucion, eg KL having sparser messages than L1 but being worse in the symbolic reconstruction. 
-The next set of results to be discussed are those presented in the Table \ref{tab:scarcity}, showing the fraction of the total variance captured by the $d$ most significant components in the edge message, where $d$ is the dimensionality of the problem. The general argument presented in the original paper was that promoting sparsity in the edge message would lead to a greater probability of successful symbolic reconstructions. However, the findings for KL training strategy provide an interesting example where the edge messages were often found to be sparser than those coming from networks trained under the L$_{1}$ strategy, however it was the strategy which had the lowest number of successful symbolic reconstructions. It is possible that the inductive bias placed on the model by the KL strategy was not appropriate for the task at hand. Alternatively, it may be the case that weight of the regularisation term was simply too large. The high MAE values over the test set also indicate that the model may have over prioritised sparsity in the edge message. Further, it is interesting to note that the opposite case is also true, where a lack of sparsity in the edge messages does not necessarily mean that the symbolic regression will fail. The charge 3D standard experiment is a good example of this, where the edge messages were not particularly sparse, with the top 3 components only capturing 40\% of the total variance, however all components were successfully reconstructed. 
+% Sparsity in edge message not signficantly correlated with higher chance of symbolic reconstrucion, eg KL having sparser messages than L1 but being worse in the symbolic reconstruction.
+The next set of results to be discussed are those presented in the Table \ref{tab:scarcity}, showing the fraction of the total variance captured by the $d$ most significant components in the edge message, where $d$ is the dimensionality of the problem. The general argument presented in the original paper was that promoting sparsity in the edge message would lead to a greater probability of successful symbolic reconstructions. However, the findings for KL training strategy provide an interesting example where the edge messages were often found to be sparser than those coming from networks trained under the L$_{1}$ strategy, however it was the strategy which had the lowest number of successful symbolic reconstructions. It is possible that the inductive bias placed on the model by the KL strategy was not appropriate for the task at hand. Alternatively, it may be the case that weight of the regularisation term was simply too large. The high MAE values over the test set also indicate that the model may have over prioritised sparsity in the edge message. Further, it is interesting to note that the opposite case is also true, where a lack of sparsity in the edge messages does not necessarily mean that the symbolic regression will fail. The charge 3D standard experiment is a good example of this, where the edge messages were not particularly sparse, with the top 3 components only capturing 40\% of the total variance, however all components were successfully reconstructed.
 \subsection{Symbolic Reconstructions}
-% Discuss the edge reconstruction results - bottleneck wins, followed by l1, then standard and KL. 
+% Discuss the edge reconstruction results - bottleneck wins, followed by l1, then standard and KL.
 Finally, the symbolic reconstructions are discussed. First the edge model's reconstructions are considered. It is no suprise that the bottleneck strategy is the most successful, as it places the strongest inductive bias, explicitly constraining the message latent space to be of the correct dimensionality. However, what is suprising is that the standard model performed better than in the original paper, which found that no model trained under the standard strategy could yield a successful reconstruction. Here, it was found that the standard strategy was able to give some successful reconstructions, despite not having any explicit strategy to promote sparsity in the edge messages. Which suggests that the inductive biases of a message-passing neural network, which calculates acceleration from aggregated messages, might be better than originally presented. This conclusion is supported by the $R^2$ values observed, which were comparable to those obtained under strategies explicitly encouraging sparsity.
 
 % Explain why R2 is more useful metric to determine which experiments were successful.
-To frame this discussion, it is important to understand the relevance of the $R^2$ Table \ref{tab:R2}. Since the true underlying force law is known and can be expressed perfectly in terms of summed messages, it is known that the symbolic model for the edge message will be a linear transformation of the true force. As such an $R^2$ value close to 1 is a sufficient condition for one to conclude that the model can be expressed as a symbolic equation. Therefore, the $R^2$ values can be used as a proxy to determine which training strategies were successful, which show that the standard, bottleneck and L1 strategies should all have more successful reconstructions than have been reported. The issue with retrieving a symbolic model is that the search space is vast, despite using a subset of the operators considered in the original paper to reduce the search space. For example, the spring 3d bottleneck provides a good example of this point. Since it had an $R^2$ value close to 1, it was assumed that the model had learned an appropriate representation of the pairwise force. However, the symbolic search was unable to find any successful reconstructions in the first attempt. It took several more attempts before a search yielded components that were close to the true pairwise force. Other experiments such as the spring 2D, spring 3D and $r^-1$ 2D and standard experiments all have $R^2$ values close to 1, however the single search performed was unable to find a successful reconstruction. It is very likely that if a longer search was done, as was the case for the spring 3D bottleneck experiment, a successful reconstruction would have been found. Therefore, the reconstructions presented should not be used as an absolute measure of the success of the training strategy, but rather an indication of what is possible to recover with a quick search. It is also important to note that while it is not strictly necessary that the experiment have a high $R^2$ value in order for symbolic regression to be successful, it is also the case that one would expect the $R^2$ value to indicate moderate correlation if the symbolic regression was successful. However, the original paper presents two odd cases, where for the KL strategy, the spring and $r^{-1}$ 3D experiments had very low $R^2$ values of was 0.214 and 0.332, respectively, yet both were stated to give successful reconstructions. Such a result is quite rare and would be interesting to investigate further. 
+To frame this discussion, it is important to understand the relevance of the $R^2$ Table \ref{tab:R2}. Since the true underlying force law is known and can be expressed perfectly in terms of summed messages, it is known that the symbolic model for the edge message will be a linear transformation of the true force. As such an $R^2$ value close to 1 is a sufficient condition for one to conclude that the model can be expressed as a symbolic equation. Therefore, the $R^2$ values can be used as a proxy to determine which training strategies were successful, which show that the standard, bottleneck and L1 strategies should all have more successful reconstructions than have been reported. The issue with retrieving a symbolic model is that the search space is vast, despite using a subset of the operators considered in the original paper to reduce the search space. For example, the spring 3d bottleneck provides a good example of this point. Since it had an $R^2$ value close to 1, it was assumed that the model had learned an appropriate representation of the pairwise force. However, the symbolic search was unable to find any successful reconstructions in the first attempt. It took several more attempts before a search yielded components that were close to the true pairwise force. Other experiments such as the spring 2D, spring 3D and $r^-1$ 2D and standard experiments all have $R^2$ values close to 1, however the single search performed was unable to find a successful reconstruction. It is very likely that if a longer search was done, as was the case for the spring 3D bottleneck experiment, a successful reconstruction would have been found. Therefore, the reconstructions presented should not be used as an absolute measure of the success of the training strategy, but rather an indication of what is possible to recover with a quick search. It is also important to note that while it is not strictly necessary that the experiment have a high $R^2$ value in order for symbolic regression to be successful, it is also the case that one would expect the $R^2$ value to indicate moderate correlation if the symbolic regression was successful. However, the original paper presents two odd cases, where for the KL strategy, the spring and $r^{-1}$ 3D experiments had very low $R^2$ values of was 0.214 and 0.332, respectively, yet both were stated to give successful reconstructions. Such a result is quite rare and would be interesting to investigate further.
 % Discuss the results of the node model - l1  wins, followed by standard, bottleneck and KL.
 
 Next the node model results are discussed. The results show that the standard, bottleneck and L1 and standard strategies all perform well. It is interesting to note how much better the node reconstructions were for the standard strategy compared to the edge reconstructions. This is likely because of the fact that neural networks like to learn simple identity functions where possible. In this case, the architecture of the GNN allows for the node model to act as a simple sum function which may explain the higher success rate of the node reconstructions compared to the edge reconstructions. Future work could include creating $R^2$ tables for the node model to better understand if reconstructions were missed as discussed earlier or if the experiments were truly unsuccessful. This could be done by finding the correlation between the node model outputs and a linear transform of the aggregated edge message and node features in the same way as was done for the edge model.
 
-It is worth noting that sometimes the correct reconstruction was not the best, however were excluded, to strictly adhere to the selection criteria outlined. In practice this would be relaxed. Further, some reconstructions were very close to the expected result, examples of close reconstructions are given in the appendix. 
+It is worth noting that sometimes the correct reconstruction was not the best, however were excluded, to strictly adhere to the selection criteria outlined. In practice this would be relaxed. Further, some reconstructions were very close to the expected result, examples of close reconstructions are given in the appendix.
 
 The final set of results to discuss are those from comparing the symbolic model's performance to the trained networks. The results show that the symbolic model generally performs worse than the corresponding neural networks. This is likely to be because the constants in the symbolic model were not refit to the data as suggested in the original paper. Given that there is no noise in the dataset, one would expect the symbolic model to perform at least as well as the neural network, if not better. It is likely performing worse due to the accumulated approximation error from the multiple levels of function fitting. It would be interesting to see how the symbolic model would perform if the constants were refit to the data.
 
@@ -560,9 +560,9 @@ The final set of results to discuss are those from comparing the symbolic model'
     The second means by which this reproduction study could be further improved is to investigate the effect incorporating more inductive biases and seeing if the trained models are easier to distill as would be expected. A natural bias to add to the model would be to include Newtons third law, through introducing a penalty to the loss term that enforces the sum of $\mathbf{\phi^{e}(x_i, x_j)} + \mathbf{\phi^e(x_j,x_i)} = \textbf{0}$.
 
 % \section{ Reproducibility}
-% This section addresses the reproducibility aspect of this work. There are 3 sources of randomness at play which affect the ability to reproduce the results. 
+% This section addresses the reproducibility aspect of this work. There are 3 sources of randomness at play which affect the ability to reproduce the results.
 % \subsection{Dataset Reproducability}
-% The first challenge reproducing the results of the original paper was in reproducing the datasets. The original paper did provide the code used to generate the datasets, however did not indicate which seeds were used. However, even if this was declared, the datasets would still be difficult to reproduce, due to the differences in hardware. $N$ body simulations, where $N > 2$, are famously chaotic systems. This means that small changes in the initial conditions can lead to vastly different outcomes. Or in this case, small numerical fluctuations introduced through the hardware specific optimisations that the \texttt{jax} package uses can lead to drastically different trajectories. To demonstrate this point, two datasets are generated following the $r^{-1}$ force law, for 4 bodies in 2 dimensions. The datasets describe 10000 simulations of 30 time steps each. The same random seed was used to generate both datasets, however the datasets were generated on different machines, the first was generated locally on a laptop using macOS and the second was generated through a system running linux. The Kologorov-Smirnov test was used to compare the distributions of the particle's $x$ coordinate as a function of time across all simulations. The results are shown in Figure \ref{fig:ks_test}. The figure shows how the p value rapidly decreases as the time step increases, indicating that the distributions quickly diverge. 
+% The first challenge reproducing the results of the original paper was in reproducing the datasets. The original paper did provide the code used to generate the datasets, however did not indicate which seeds were used. However, even if this was declared, the datasets would still be difficult to reproduce, due to the differences in hardware. $N$ body simulations, where $N > 2$, are famously chaotic systems. This means that small changes in the initial conditions can lead to vastly different outcomes. Or in this case, small numerical fluctuations introduced through the hardware specific optimisations that the \texttt{jax} package uses can lead to drastically different trajectories. To demonstrate this point, two datasets are generated following the $r^{-1}$ force law, for 4 bodies in 2 dimensions. The datasets describe 10000 simulations of 30 time steps each. The same random seed was used to generate both datasets, however the datasets were generated on different machines, the first was generated locally on a laptop using macOS and the second was generated through a system running linux. The Kologorov-Smirnov test was used to compare the distributions of the particle's $x$ coordinate as a function of time across all simulations. The results are shown in Figure \ref{fig:ks_test}. The figure shows how the p value rapidly decreases as the time step increases, indicating that the distributions quickly diverge.
 
 % \begin{figure}[H]
 %     \centering
@@ -583,7 +583,7 @@ The final set of results to discuss are those from comparing the symbolic model'
 % % Dockerisation, conda, git, readme, etc.
 
 \section{Conclusion}
-This report has presented the results of a reproduction study of the paper "Discovering Symbolic Models using Deep Learning with Inductive Biases". Here a subset of the experiments introduced in the original paper were investigated. This report managed to find the same overall trends in the MAE values as the original paper. Symbolic reconstructions of the edge and node models were successfully found. With the bottleneck and L1 training strategies being the most successful in yielding the most reconstructions of the true force law as reported by the original paper. However, the standard strategy was found to be far more successful in learning a compact latent space than was suggested by the original paper. Thus, the main claim of the original paper, that symbolic regression can be used to distill the learned models of neural networks trained using appropriate inductive biases, was found to be true. 
+This report has presented the results of a reproduction study of the paper "Discovering Symbolic Models using Deep Learning with Inductive Biases". Here a subset of the experiments introduced in the original paper were investigated. This report managed to find the same overall trends in the MAE values as the original paper. Symbolic reconstructions of the edge and node models were successfully found. With the bottleneck and L1 training strategies being the most successful in yielding the most reconstructions of the true force law as reported by the original paper. However, the standard strategy was found to be far more successful in learning a compact latent space than was suggested by the original paper. Thus, the main claim of the original paper, that symbolic regression can be used to distill the learned models of neural networks trained using appropriate inductive biases, was found to be true.
 %     Talk about perhaps the more sensible thing would be to distill one at a time in accordance with the framework.
 %     Effect of training for fewer epochs
 %     Discuss challenges reproducing the results of the paper.
@@ -592,18 +592,18 @@ This report has presented the results of a reproduction study of the paper "Disc
 %     Dataset seed and local environment differences.
 %     Try to generate the dataset from a docker container to standardise the environment.
 %     Config files git commits, wandb
-%     Future work, squash velocity, use a larger eps and see if the model can learn this, squash the log var. For data pre processing 
+%     Future work, squash velocity, use a larger eps and see if the model can learn this, squash the log var. For data pre processing
 %     Preprocessing not in paper but got nans in kl otherwise
 %     Explore purely velocity based pre pru
 %     , NL3, enforcing correctness of dimensional units.
 %     Discussion point - stronger L1 or an L1 scheduler type thing.
 %     Could make the data more reproducable by fewer time steps and more simulations
-    
+
 \section{Appendix}
 \subsection{Failed Symbolic Reconstructions}
 \paragraph*{Example of some failed edge reconstructions:}
 \begin{itemize}
-    \item 
+    \item
 
     Spring 2D, KL (clearly wrong):
     $$
@@ -622,7 +622,7 @@ This report has presented the results of a reproduction study of the paper "Disc
 \end{itemize}
 \paragraph{Example of some failed node reconstructions:}
 \begin{itemize}
-    \item 
+    \item
     Charge 3D, KL (clearly wrong):
     $$
     \phi^{v}_3 = \bar{e_1}\bar{e_2}^2
@@ -644,9 +644,8 @@ Copilot was used extensively for formatting the equations and plots used in this
 
 
 
-    
+
 
 \bibliographystyle{plain}  % Choose the style that suits your needs
-\bibliography{references}  
+\bibliography{references}
 \end{document}
-

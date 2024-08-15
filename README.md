@@ -4,7 +4,7 @@ This project is aimed at reproducing the work presented in [Discovering Symbolic
 
 The pretrained model for the spring 2d dataset under the L1 training strategy can be found in the `pretrained_models` directory.
 The rest of the trained model weights along with the exact training data used in the experiments can be made available upon request.
- 
+
 ## Pre-requisites
 Ensure conda is installed on your system. If not, follow the instructions [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
@@ -46,7 +46,7 @@ The following scripts are available:
 
     Note, this is just a wrapper script to call `simulations/simulate.py` with the specified arguments. The `simulate.py` script can be used directly to run a single simulation, it is the same code as was used to generate the data for the experiments in the original paper and is taken from the [original repository](https://github.com/MilesCranmer/symbolic_deep_learning/blob/master/simulate.py)
 
-- `src/train.py`: 
+- `src/train.py`:
 
     Trains a message passing neural network.
 
@@ -55,7 +55,7 @@ The following scripts are available:
     python src/train.py <config_file>
     ```
     Arguments:
-    - `config_file`: Path to the config file, for example `configs/hello_world/train_config.yaml`. The config file specifies the dataset, model, training strategy, and other hyperparameters. 
+    - `config_file`: Path to the config file, for example `configs/hello_world/train_config.yaml`. The config file specifies the dataset, model, training strategy, and other hyperparameters.
 
     The output of the train script will be a directory of the model weights, a copy of the config with the git hash and wandb run url added to it. If `save_messages` is set to true in the config file, the edge messages will also be saved to a subdirectory `train_messages` in the output directory. The messages will be saved according to the value specified for the `save_every_n_epochs`, which also determines the number of epochs between saving the model weights. The `save_message_limit` decides the number of messages to save. The best model weights are saved as `best_model.pt` in the model weights subdirectory of the output directory.
 
@@ -68,7 +68,7 @@ The following scripts are available:
     python src/test.py <config_file>
     ```
     Arguments:
-    - `config_file`: Path to the config file, for example `configs/hello_world/test_config.yaml`. The config file specifies the dataset, model, loss and other hyperparameters. 
+    - `config_file`: Path to the config file, for example `configs/hello_world/test_config.yaml`. The config file specifies the dataset, model, loss and other hyperparameters.
 
     The output of the test script will be a directory containing the summary statistics of the models loss on the test set, a copy of the test config with the git hash added to it. Further, a sub directory called `symbolic_regression_csvs` will be created if the `save_messages` parameter is set to true in the config file. This directory will contain the edge messages and node accelerations for the test set for a sample of the data. The number of samples used is determed by the `message_save_limit` which sets the number of edges after which to stop saving messages. This also sets the limit for the number of samples the node accelerations are saved for.
 
@@ -95,7 +95,7 @@ The following scripts are available:
     3) `sparsity_plot.png` plot showing visualising the sparsity of the top 15 most important edge messages components. Shows the fraction of the total standard deviation each component contains.
     4) `top_msgs_std.txt` txt file containing the total fraction of the standard deviation contained in dim most important edge messages components. Where dim is the dimensionality of the problem, determined by the columns in the `input_csv` file.
     5) `symbolic_edge.pkl` pickle file of a dictionary with keys: model, var_names and important_msg_idxs. The model is the pysr symbolic regression model, var_names is the names of the variables used in the symbolic regression and important_msg_idxs is the indices of the most important edge messages.
-    6) `nn_msg_symbolic_msg_diff.json` json file containing the summary statistics of the difference between the edge messages and the output of the best symbolic model. 
+    6) `nn_msg_symbolic_msg_diff.json` json file containing the summary statistics of the difference between the edge messages and the output of the best symbolic model.
     7) `nn_msg_symbolic_msg_diff.png` plot showing the scatter of the the edge message components and the output components of the best symbolic model.
 
 - `src/eval_node_model.py`:
@@ -151,7 +151,7 @@ The following scripts are available:
 
 
 ## Hello World Example
-For an outline of this project please read the report in the `report` directory. 
+For an outline of this project please read the report in the `report` directory.
 The following is an example of how to generate the results for a single simulation and training strategy.
 Specifically, we will train a model on a tiny spring 2d data under the L1 training strategy and distill it. The same pipeline can easily be used for other datasets and training strategies.
 
@@ -191,7 +191,7 @@ docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_
 The gifs will be saved in the `train_runs/spring_2d_l1/gif` directory.
 
 ### Test Model
-Next test the model, or use the pretrained model in the `pretrained_models` directory by specifying the config file `configs/hello_world/test_config_pretrained.yaml`. 
+Next test the model, or use the pretrained model in the `pretrained_models` directory by specifying the config file `configs/hello_world/test_config_pretrained.yaml`.
 
 Docker:
 ```
@@ -218,9 +218,11 @@ docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_
 
 Visualise the discovered equations:
 
-NOTE: Successful reconstruction of the edge model looks like a linear transform of the true pairwise force law - in this case for spring 2d, the pairwise force law is $\mathbf{f} = |1-1/r|\mathbf{\Delta r}$, so the edge model should be distilled into an expression ~ $\mathbf{\phi^e_i} = |1-1/r|(a*\Delta x + b*\Delta y) + c$. See the report for more details.
+NOTE:
 
-Successful reconstrunction of the node model should look like a sum over the aggregated edge messages.
+Successful reconstruction of the edge model looks like a linear transform of the true pairwise force law - in this case for spring 2d, the pairwise force law is $\mathbf{f} = |1-1/r|\mathbf{\Delta r}$, so the edge model should be distilled into an expression ~ $\mathbf{\phi^e_i} = |1-1/r|(a*\Delta x + b*\Delta y) + c$. See the report for more details.
+
+Successful reconstrunction of the node model should look like a sum over the aggregated edge messages divided by the mass. Although sometimes the edge model learns a linear transform of the true acceleration, in which case there is no division by mass since the edge message is already in the dimensions of acceleration.
 
 ```
 python -c "print('Edge Model Equations:')"
@@ -247,7 +249,7 @@ docker run -it -v $(pwd):/app vj279_project /bin/bash -c "source activate vj279_
 
 ## Running the full pipeline for other experiments.
 
-To run the experiments described in the report, simply repeat the steps above and create full sized datasets as described in the report. Currently, the following arguments for the `sim` parameter are supported: `spring`, `r1`, `r2` and `charge`. The report used the argument for the seed parameter as follows: `seed=1` for the training set, `seed=2` for the validation set and `seed=3` for the test set. 
+To run the experiments described in the report, simply repeat the steps above and create full sized datasets as described in the report. Currently, the following arguments for the `sim` parameter are supported: `spring`, `r1`, `r2` and `charge`. The report used the argument for the seed parameter as follows: `seed=1` for the training set, `seed=2` for the validation set and `seed=3` for the test set.
 
 It is best to use the commands above to generate the data to guarantee the correct structure and naming. Simply change the arguments to the `run_sims.py` script to generate the desired dataset, however as long as the following structure is maintained, the training and testing scripts will work with any dataset.
 
